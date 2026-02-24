@@ -113,3 +113,71 @@ Ogni volta che ricevi un dato (da P2P o Server):
 
 **Promemoria:**
 > "Il codice deve trattare il server come un accessorio, non come una necessità. Se il database locale è integro, l'utente deve poter fare tutto."
+
+
+# Smezza: Guida all'Architettura e Sviluppo (Parte 2)
+
+## 1. Identità Crittografica e Sicurezza
+L'identità non è un semplice nome utente, ma una coppia di chiavi asimmetriche (**Ed25519**).
+
+*   **Public Key (L'UUID):** La chiave pubblica viene codificata in **Base64URL** (circa 44 caratteri, sicura per database e URL). Questa stringa funge da **ID Univoco** dell'utente in tutto il sistema.
+*   **Private Key (La Firma):** Risiede solo nel **Secure Storage** del telefono. Ogni operazione (creazione spesa, ammissione membro) deve essere firmata.
+*   **Firma Digitale:** Ogni pacchetto dati include una firma. Chi riceve il dato (amico o server) verifica la firma usando la Public Key dell'autore. Se il dato viene alterato anche di un solo centesimo, la verifica fallisce.
+
+---
+
+## 2. Consistenza dei Dati (Hybrid Logical Clock)
+Per evitare conflitti tra modifiche offline senza un server centrale, usiamo l'algoritmo **HLC**.
+
+*   **Formato Stringa:** `timestamp_ms : counter : node_id` (es. `1738933500000:0001:p5bVp...`).
+*   **Ordinamento:** Essendo una stringa con padding, il database può ordinarla lessicograficamente.
+*   **Last-Write-Wins (LWW):** In fase di sincronizzazione, se ricevo un record con lo stesso UUID:
+    *   Se `HLC_remoto > HLC_locale` -> **Aggiorno**.
+    *   Se `HLC_remoto <= HLC_locale` -> **Ignoro**.
+*   **Drift Correzione:** Se ricevo un HLC dal futuro, il mio orologio locale "salta" in avanti per mantenere la causalità.
+
+---
+
+## 3. PocketBase: Il "Peer" Sempre Online
+PocketBase non è il "padrone" dei dati, ma un nodo paritario che funge da specchio e postino.
+
+*   **Autenticazione Ibrida:**
+    *   L'utente usa **Email/Password** su PocketBase per il backup e la sicurezza online.
+    *   Il server lega l'account Email alla **Public Key** dell'utente.
+*   **Validazione Crittografica (Hooks):** PocketBase agisce come un nodo P2P. Tramite **JS/Go Hooks**, verifica la firma dei dati prima di accettarli.
+*   **Simmetria ID:** Usiamo l'ID di sistema di PocketBase per contenere i nostri UUID/PublicKeys, garantendo coerenza totale tra SQLite locale e Database remoto.
+
+---
+
+## 4. Gestione Gruppi e Amministratori (Chain of Trust)
+L'autorità in un gruppo è distribuita tramite certificati firmati.
+
+*   **Genesi:** Il creatore firma il record di creazione del gruppo (è l'**Owner**).
+*   **Ammissione Membri:** Un Admin/Owner genera un record di "Ammissione" che contiene l'UUID dell'amico e lo firma.
+*   **Validazione P2P:** Bob accetta dati da Alice solo se possiede il certificato di ammissione di Alice firmato dal creatore del gruppo.
+
+---
+
+## 5. Comunicazione e Notifiche
+Niente polling. La comunicazione è basata su eventi (Push/Message).
+
+### Flusso di Notifica "Intelligente":
+1.  **App Aperta:** Sottoscrizione **WebSocket** (PocketBase Realtime) per aggiornamenti istantanei.
+2.  **App Chiusa:** Il server invia un **Silent Push** (Firebase Cloud Messaging).
+3.  **Vicinanza (Offline):** Sincronizzazione via **Mesh Bluetooth** (Nearby Connections).
+
+### De-duplicazione (Anti-Disturbo):
+Per evitare notifiche doppie (es. arrivano dati sia da Bluetooth che da Firebase):
+*   La notifica viene generata **solo dopo** che il database SQLite ha confermato l'inserimento di un *nuovo* record.
+*   Se l'UUID della spesa è già presente (perché arrivato prima via P2P), l'app scarta il segnale Firebase e non mostra nessuna notifica fastidiosa.
+
+---
+
+## 6. Prototipazione e Test (Roadmap Backend)
+Lo sviluppo deve procedere "Headless" (senza UI) per validare la robustezza.
+
+1.  **Generazione Chiavi:** Script Python/Dart per creare coppie Ed25519 e derivare l'ID Base64URL.
+2.  **Hook PocketBase:** Implementare la logica di confronto HLC nel server per garantire che "il tempo non torni indietro".
+3.  **Test di Modifica (Edit):** Verificare che modificando una spesa, la nuova firma e il nuovo HLC vengano accettati dal server e che quelli vecchi vengano rifiutati.
+4.  **Simulazione Mesh:** Testare lo scambio di pacchetti JSON firmati tra due istanze del client tester.
+

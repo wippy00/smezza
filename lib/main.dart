@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'screens/home_page.dart';
+import 'screens/expenses_page.dart';
+import 'screens/settings_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,30 +13,50 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Smezza - Gestione Spese',
       theme: ThemeData.from(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.deepPurple,
+          brightness: Brightness.dark,
+        ),
       ),
-      home: HomePage(),
+      home: const MainNavigation(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+class MainNavigation extends StatefulWidget {
+  const MainNavigation({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<MainNavigation> createState() => _MainNavigationState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _MainNavigationState extends State<MainNavigation> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = [
+    HomePage(),
+    ExpensesPage(),
+    SettingsPage(),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Flutter Web'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: _pages,
       ),
-      body: const Center(child: Text('Hello, Flutter')),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _selectedIndex,
+        onDestinationSelected: (index) => setState(() => _selectedIndex = index),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+          NavigationDestination(icon: Icon(Icons.receipt_long), label: 'Spese'),
+          NavigationDestination(icon: Icon(Icons.settings), label: 'Impostazioni'),
+        ],
+      ),
     );
   }
 }
