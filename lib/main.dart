@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'screens/home_page.dart';
-import 'screens/expenses_page.dart';
-import 'screens/settings_page.dart';
+import 'ui/screens/home_page.dart';
+import 'ui/screens/expenses_page.dart';
+import 'ui/screens/settings_page.dart';
 
 void main() {
   runApp(const MyApp());

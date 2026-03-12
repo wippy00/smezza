@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../models/expense.dart';
+import '../../core/models/expense.dart';
 // import '../services/database_service.dart';
 
 class AddExpenseScreen extends StatefulWidget {

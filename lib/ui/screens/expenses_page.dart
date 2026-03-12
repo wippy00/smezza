@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../models/expense.dart';
-import '../screens/add_expense_screen.dart';
+import '../../core/models/expense.dart';
+import '../widgets/add_expense_screen.dart';
 
 class ExpensesPage extends StatefulWidget {
   const ExpensesPage({super.key});
