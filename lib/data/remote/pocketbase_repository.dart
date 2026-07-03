@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'package:pocketbase/pocketbase.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 import '../../sync/sync_packet.dart';
 import '../../sync/sync_repository.dart';
 import '../../sync/merge_engine.dart';
 import '../../core/identity/identity_manager.dart';
+import '../../core/hlc/hlc_manager.dart';
 
 class PocketbaseRepository implements SyncRepository {
   final PocketBase _pb;
@@ -28,11 +31,48 @@ class PocketbaseRepository implements SyncRepository {
 
   bool get isLoggedIn => _pb.authStore.isValid;
 
-  // Autenticazione di base
+  Future<void> init() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('pb_auth_token');
+    final modelStr = prefs.getString('pb_auth_model');
+
+    if (token != null && modelStr != null) {
+      try {
+        final modelMap = jsonDecode(modelStr);
+        final model = RecordModel.fromJson(modelMap);
+
+        _pb.authStore.save(token, model);
+        _statusController.add(SyncStatus.connected);
+        print(
+          "PocketbaseRepository: Sessione utente ripristinata correttamente!",
+        );
+      } catch (e) {
+        print("PocketbaseRepository: Errore nel ripristino della sessione: $e");
+        _pb.authStore.clear();
+      }
+    }
+  }
+
+  Future<void> _saveSession() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('pb_auth_token', _pb.authStore.token);
+    await prefs.setString('pb_auth_model', jsonEncode(_pb.authStore.model));
+  }
+
+  Future<void> logout() async {
+    _pb.authStore.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('pb_auth_token');
+    await prefs.remove('pb_auth_model');
+    _statusController.add(SyncStatus.disconnected);
+    print("PocketbaseRepository: Sessione cancellata (Logout).");
+  }
+
   Future<void> login(String email, String password) async {
     _statusController.add(SyncStatus.syncing);
     try {
       await _pb.collection('users').authWithPassword(email, password);
+      await _saveSession();
       _statusController.add(SyncStatus.connected);
     } catch (_) {
       _statusController.add(SyncStatus.error);
@@ -40,10 +80,11 @@ class PocketbaseRepository implements SyncRepository {
     }
   }
 
-  // Registrazione nuovo utente
   Future<void> register(String email, String password, String name) async {
     _statusController.add(SyncStatus.syncing);
     try {
+      final initialHlc = Hlc.now(_identity.uuid);
+
       await _pb
           .collection('users')
           .create(
@@ -52,9 +93,10 @@ class PocketbaseRepository implements SyncRepository {
               'password': password,
               'passwordConfirm': password,
               'name': name,
+              'public_key': _identity.uuid,
+              'hlc': initialHlc.toString(),
             },
           );
-      // Effettua subito il login dopo essersi registrato
       await login(email, password);
     } catch (_) {
       _statusController.add(SyncStatus.error);
@@ -62,81 +104,78 @@ class PocketbaseRepository implements SyncRepository {
     }
   }
 
+  Future<void> _upsertRecord(
+    String collection,
+    String id,
+    Map<String, dynamic> body,
+  ) async {
+    try {
+      await _pb.collection(collection).update(id, body: body);
+    } catch (e) {
+      if (e is ClientException && e.statusCode == 404) {
+        final createBody = Map<String, dynamic>.from(body)..['id'] = id;
+        await _pb.collection(collection).create(body: createBody);
+      } else {
+        rethrow;
+      }
+    }
+  }
+
   @override
   Future<void> push(SyncPacket packet) async {
-    // if (!isLoggedIn) return;
+    if (!isLoggedIn) return;
 
     _statusController.add(SyncStatus.syncing);
     try {
-      // 1. Spediamo i gruppi
       for (final g in packet.groups) {
-        await _pb
-            .collection('groups')
-            .create(
-              body: {
-                'id': g['id'], // Usiamo direttamente l'id nativo di PocketBase!
-                'name': g['name'],
-                'currency_code': g['currencyCode'],
-                'owner_id': g['ownerId'],
-                'signature': g['signature'], // Inviamo la firma del gruppo
-                'hlc': g['hlc'],
-                'is_deleted': g['isDeleted'],
-              },
-            );
+        await _upsertRecord('groups', g['id'], {
+          'name': g['name'],
+          'currency_code': g['currencyCode'],
+          'owner_id': g['ownerId'],
+          'signature': g['signature'],
+          'hlc': g['hlc'],
+          'is_deleted': g['isDeleted'],
+          'member_ids':
+              g['memberIds'], // <--- AGGIUNTO IL SYNC DEI PARTECIPANTI VERSO POCKETBASE
+        });
       }
 
-      // 2. Spediamo le spese
       for (final e in packet.expenses) {
-        await _pb
-            .collection('expenses')
-            .create(
-              body: {
-                'id': e['id'],
-                'group_id':
-                    e['groupId'], // Allineato a 'group_id' di PocketBase
-                'creator_id':
-                    e['payerId'], // Allineato a 'creator_id' di PocketBase
-                'description': e['description'],
-                'amount': e['amount'],
-                'currency_code': e['currencyCode'],
-                'split_type': e['splitType'],
-                'signature':
-                    e['signature'], // Ora invierà la firma reale creata sopra!
-                'hlc': e['hlc'],
-                'is_deleted': e['isDeleted'],
-              },
-            );
+        await _upsertRecord('expenses', e['id'], {
+          'group_id': e['groupId'],
+          'creator_id': e['payerId'],
+          'description': e['description'],
+          'amount': e['amount'],
+          'currency_code': e['currencyCode'],
+          'split_type': e['splitType'],
+          'signature': e['signature'],
+          'hlc': e['hlc'],
+          'is_deleted': e['isDeleted'],
+        });
       }
 
-      // 3. Spediamo gli split
       for (final s in packet.splits) {
-        await _pb
-            .collection('expense_splits')
-            .create(
-              body: {
-                'id': s['id'],
-                'expense_id': s['expenseId'],
-                'user_id': s['userId'],
-                'calculated_amount': s['calculatedAmount'],
-                'raw_value': s['rawValue'],
-              },
-            );
+        await _upsertRecord('expense_splits', s['id'], {
+          'expense_id': s['expenseId'],
+          'user_id': s['userId'],
+          'calculated_amount': s['calculatedAmount'],
+          'raw_value': s['rawValue'],
+        });
       }
 
       _statusController.add(SyncStatus.connected);
     } catch (e) {
       _statusController.add(SyncStatus.error);
-      rethrow; // <--- IMPORTANTE! Rilancia l'errore al SyncService
+      rethrow;
     }
   }
 
   @override
   Future<SyncPacket?> pull({required String sinceHlc}) async {
-    // if (!isLoggedIn) return null;
+    if (!isLoggedIn) return null;
 
     _statusController.add(SyncStatus.syncing);
     try {
-      // Chiediamo i record modificati dopo sinceHlc
       final filterQuery = 'hlc > "$sinceHlc"';
 
       final remoteGroups = await _pb
@@ -146,35 +185,31 @@ class PocketbaseRepository implements SyncRepository {
           .collection('expenses')
           .getFullList(filter: filterQuery);
 
-      // 2. Scarichiamo gli split associati alle spese
       final List<RecordModel> remoteSplits = [];
       if (remoteExpenses.isNotEmpty) {
-        // Generiamo il filtro unendo le condizioni con '||' (OR):
-        // "expense_id = 'id1' || expense_id = 'id2'"
-        final filterQuery = remoteExpenses
+        final expenseUuids = remoteExpenses
             .map((e) => 'expense_id = "${e.id}"')
-            .join(
-              ' || ',
-            ); // Unisce le condizioni con l'operatore OR di PocketBase
-
+            .join(' || ');
         remoteSplits.addAll(
           await _pb
               .collection('expense_splits')
-              .getFullList(filter: filterQuery),
+              .getFullList(filter: expenseUuids),
         );
       }
 
-      // Cambiamo 'uuid' con 'id' nativo nei mappatori del pull
       final groupsJson = remoteGroups
           .map(
             (r) => {
-              'id': r.id, // r.id legge l'id nativo di PocketBase
+              'id': r.id,
               'name': r.getStringValue('name'),
               'currencyCode': r.getStringValue('currency_code'),
               'ownerId': r.getStringValue('owner_id'),
-              'signature': r.getStringValue('signature'), // Riceviamo la firma
+              'signature': r.getStringValue('signature'),
               'hlc': r.getStringValue('hlc'),
               'isDeleted': r.getBoolValue('is_deleted'),
+              'memberIds': r.getStringValue(
+                'member_ids',
+              ), // <--- RICEZIONE MEMBRI DA POCKETBASE
               'isSynced': true,
             },
           )
@@ -218,14 +253,13 @@ class PocketbaseRepository implements SyncRepository {
         splits: splitsJson,
       );
 
-      // Applichiamo il pacchetto al database locale
       await _merge.applyPacket(packet);
 
       _statusController.add(SyncStatus.connected);
       return packet;
     } catch (e) {
       _statusController.add(SyncStatus.error);
-      rethrow; // <--- IMPORTANTE!
+      rethrow;
     }
   }
 

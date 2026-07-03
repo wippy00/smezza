@@ -421,6 +421,18 @@ class $GroupsTableTable extends GroupsTable
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _memberIdsMeta = const VerificationMeta(
+    'memberIds',
+  );
+  @override
+  late final GeneratedColumn<String> memberIds = GeneratedColumn<String>(
+    'member_ids',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
   static const VerificationMeta _isDeletedMeta = const VerificationMeta(
     'isDeleted',
   );
@@ -459,6 +471,7 @@ class $GroupsTableTable extends GroupsTable
     ownerId,
     hlc,
     signature,
+    memberIds,
     isDeleted,
     isSynced,
   ];
@@ -520,6 +533,12 @@ class $GroupsTableTable extends GroupsTable
         signature.isAcceptableOrUnknown(data['signature']!, _signatureMeta),
       );
     }
+    if (data.containsKey('member_ids')) {
+      context.handle(
+        _memberIdsMeta,
+        memberIds.isAcceptableOrUnknown(data['member_ids']!, _memberIdsMeta),
+      );
+    }
     if (data.containsKey('is_deleted')) {
       context.handle(
         _isDeletedMeta,
@@ -565,6 +584,10 @@ class $GroupsTableTable extends GroupsTable
         DriftSqlType.string,
         data['${effectivePrefix}signature'],
       ),
+      memberIds: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}member_ids'],
+      )!,
       isDeleted: attachedDatabase.typeMapping.read(
         DriftSqlType.bool,
         data['${effectivePrefix}is_deleted'],
@@ -589,6 +612,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
   final String ownerId;
   final String hlc;
   final String? signature;
+  final String memberIds;
   final bool isDeleted;
   final bool isSynced;
   const GroupsTableData({
@@ -598,6 +622,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     required this.ownerId,
     required this.hlc,
     this.signature,
+    required this.memberIds,
     required this.isDeleted,
     required this.isSynced,
   });
@@ -612,6 +637,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     if (!nullToAbsent || signature != null) {
       map['signature'] = Variable<String>(signature);
     }
+    map['member_ids'] = Variable<String>(memberIds);
     map['is_deleted'] = Variable<bool>(isDeleted);
     map['is_synced'] = Variable<bool>(isSynced);
     return map;
@@ -627,6 +653,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       signature: signature == null && nullToAbsent
           ? const Value.absent()
           : Value(signature),
+      memberIds: Value(memberIds),
       isDeleted: Value(isDeleted),
       isSynced: Value(isSynced),
     );
@@ -644,6 +671,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       ownerId: serializer.fromJson<String>(json['ownerId']),
       hlc: serializer.fromJson<String>(json['hlc']),
       signature: serializer.fromJson<String?>(json['signature']),
+      memberIds: serializer.fromJson<String>(json['memberIds']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
     );
@@ -658,6 +686,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       'ownerId': serializer.toJson<String>(ownerId),
       'hlc': serializer.toJson<String>(hlc),
       'signature': serializer.toJson<String?>(signature),
+      'memberIds': serializer.toJson<String>(memberIds),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'isSynced': serializer.toJson<bool>(isSynced),
     };
@@ -670,6 +699,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     String? ownerId,
     String? hlc,
     Value<String?> signature = const Value.absent(),
+    String? memberIds,
     bool? isDeleted,
     bool? isSynced,
   }) => GroupsTableData(
@@ -679,6 +709,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     ownerId: ownerId ?? this.ownerId,
     hlc: hlc ?? this.hlc,
     signature: signature.present ? signature.value : this.signature,
+    memberIds: memberIds ?? this.memberIds,
     isDeleted: isDeleted ?? this.isDeleted,
     isSynced: isSynced ?? this.isSynced,
   );
@@ -692,6 +723,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       hlc: data.hlc.present ? data.hlc.value : this.hlc,
       signature: data.signature.present ? data.signature.value : this.signature,
+      memberIds: data.memberIds.present ? data.memberIds.value : this.memberIds,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
     );
@@ -706,6 +738,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
           ..write('ownerId: $ownerId, ')
           ..write('hlc: $hlc, ')
           ..write('signature: $signature, ')
+          ..write('memberIds: $memberIds, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('isSynced: $isSynced')
           ..write(')'))
@@ -720,6 +753,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     ownerId,
     hlc,
     signature,
+    memberIds,
     isDeleted,
     isSynced,
   );
@@ -733,6 +767,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
           other.ownerId == this.ownerId &&
           other.hlc == this.hlc &&
           other.signature == this.signature &&
+          other.memberIds == this.memberIds &&
           other.isDeleted == this.isDeleted &&
           other.isSynced == this.isSynced);
 }
@@ -744,6 +779,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
   final Value<String> ownerId;
   final Value<String> hlc;
   final Value<String?> signature;
+  final Value<String> memberIds;
   final Value<bool> isDeleted;
   final Value<bool> isSynced;
   final Value<int> rowid;
@@ -754,6 +790,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     this.ownerId = const Value.absent(),
     this.hlc = const Value.absent(),
     this.signature = const Value.absent(),
+    this.memberIds = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -765,6 +802,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     required String ownerId,
     required String hlc,
     this.signature = const Value.absent(),
+    this.memberIds = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -780,6 +818,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     Expression<String>? ownerId,
     Expression<String>? hlc,
     Expression<String>? signature,
+    Expression<String>? memberIds,
     Expression<bool>? isDeleted,
     Expression<bool>? isSynced,
     Expression<int>? rowid,
@@ -791,6 +830,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
       if (ownerId != null) 'owner_id': ownerId,
       if (hlc != null) 'hlc': hlc,
       if (signature != null) 'signature': signature,
+      if (memberIds != null) 'member_ids': memberIds,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (isSynced != null) 'is_synced': isSynced,
       if (rowid != null) 'rowid': rowid,
@@ -804,6 +844,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     Value<String>? ownerId,
     Value<String>? hlc,
     Value<String?>? signature,
+    Value<String>? memberIds,
     Value<bool>? isDeleted,
     Value<bool>? isSynced,
     Value<int>? rowid,
@@ -815,6 +856,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
       ownerId: ownerId ?? this.ownerId,
       hlc: hlc ?? this.hlc,
       signature: signature ?? this.signature,
+      memberIds: memberIds ?? this.memberIds,
       isDeleted: isDeleted ?? this.isDeleted,
       isSynced: isSynced ?? this.isSynced,
       rowid: rowid ?? this.rowid,
@@ -842,6 +884,9 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     if (signature.present) {
       map['signature'] = Variable<String>(signature.value);
     }
+    if (memberIds.present) {
+      map['member_ids'] = Variable<String>(memberIds.value);
+    }
     if (isDeleted.present) {
       map['is_deleted'] = Variable<bool>(isDeleted.value);
     }
@@ -863,6 +908,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
           ..write('ownerId: $ownerId, ')
           ..write('hlc: $hlc, ')
           ..write('signature: $signature, ')
+          ..write('memberIds: $memberIds, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('isSynced: $isSynced, ')
           ..write('rowid: $rowid')
@@ -2134,6 +2180,7 @@ typedef $$GroupsTableTableCreateCompanionBuilder =
       required String ownerId,
       required String hlc,
       Value<String?> signature,
+      Value<String> memberIds,
       Value<bool> isDeleted,
       Value<bool> isSynced,
       Value<int> rowid,
@@ -2146,6 +2193,7 @@ typedef $$GroupsTableTableUpdateCompanionBuilder =
       Value<String> ownerId,
       Value<String> hlc,
       Value<String?> signature,
+      Value<String> memberIds,
       Value<bool> isDeleted,
       Value<bool> isSynced,
       Value<int> rowid,
@@ -2187,6 +2235,11 @@ class $$GroupsTableTableFilterComposer
 
   ColumnFilters<String> get signature => $composableBuilder(
     column: $table.signature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get memberIds => $composableBuilder(
+    column: $table.memberIds,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2240,6 +2293,11 @@ class $$GroupsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get memberIds => $composableBuilder(
+    column: $table.memberIds,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<bool> get isDeleted => $composableBuilder(
     column: $table.isDeleted,
     builder: (column) => ColumnOrderings(column),
@@ -2279,6 +2337,9 @@ class $$GroupsTableTableAnnotationComposer
 
   GeneratedColumn<String> get signature =>
       $composableBuilder(column: $table.signature, builder: (column) => column);
+
+  GeneratedColumn<String> get memberIds =>
+      $composableBuilder(column: $table.memberIds, builder: (column) => column);
 
   GeneratedColumn<bool> get isDeleted =>
       $composableBuilder(column: $table.isDeleted, builder: (column) => column);
@@ -2324,6 +2385,7 @@ class $$GroupsTableTableTableManager
                 Value<String> ownerId = const Value.absent(),
                 Value<String> hlc = const Value.absent(),
                 Value<String?> signature = const Value.absent(),
+                Value<String> memberIds = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -2334,6 +2396,7 @@ class $$GroupsTableTableTableManager
                 ownerId: ownerId,
                 hlc: hlc,
                 signature: signature,
+                memberIds: memberIds,
                 isDeleted: isDeleted,
                 isSynced: isSynced,
                 rowid: rowid,
@@ -2346,6 +2409,7 @@ class $$GroupsTableTableTableManager
                 required String ownerId,
                 required String hlc,
                 Value<String?> signature = const Value.absent(),
+                Value<String> memberIds = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
@@ -2356,6 +2420,7 @@ class $$GroupsTableTableTableManager
                 ownerId: ownerId,
                 hlc: hlc,
                 signature: signature,
+                memberIds: memberIds,
                 isDeleted: isDeleted,
                 isSynced: isSynced,
                 rowid: rowid,

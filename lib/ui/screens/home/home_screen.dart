@@ -99,6 +99,39 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  void _confirmDeleteGroup(BuildContext context, GroupsTableData group) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Elimina Gruppo'),
+          content: Text(
+            'Sei sicuro di voler eliminare il gruppo "${group.name}"? Tutti i dati verranno rimossi.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                final db = GetIt.I<AppDatabase>();
+                final identity = GetIt.I<IdentityService>();
+                final hlc = Hlc.now(identity.uuid);
+
+                // Eseguiamo il soft-delete locale
+                await db.groupsDao.softDeleteGroup(group.id, hlc.toString());
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Elimina'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // ref.watch si mette in ascolto del provider.
@@ -179,7 +212,11 @@ class HomeScreen extends ConsumerWidget {
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     subtitle: Text('Valuta: ${group.currencyCode}'),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    // Aggiungiamo il tasto cestino
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline, color: Colors.red),
+                      onPressed: () => _confirmDeleteGroup(context, group),
+                    ),
                     onTap: () {
                       Navigator.push(
                         context,

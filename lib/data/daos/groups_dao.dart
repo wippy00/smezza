@@ -19,4 +19,43 @@ class GroupsDao extends DatabaseAccessor<AppDatabase> with _$GroupsDaoMixin {
   Future<void> upsertGroup(GroupsTableCompanion entry) {
     return into(groupsTable).insertOnConflictUpdate(entry);
   }
+
+  Future<void> softDeleteGroup(String id, String newHlc) async {
+    await (update(groupsTable)..where((t) => t.id.equals(id))).write(
+      GroupsTableCompanion(
+        isDeleted: const Value(true),
+        isSynced: const Value(false),
+        hlc: Value(newHlc),
+      ),
+    );
+  }
+
+  // ---> INCOLLA QUESTO NUOVO METODO QUI DENTRO <---
+  Future<void> addMemberToGroup(
+    String groupId,
+    String userId,
+    String newHlc,
+  ) async {
+    final group = await (select(
+      groupsTable,
+    )..where((t) => t.id.equals(groupId))).getSingle();
+
+    // Creiamo la lista attuale dei membri
+    final currentMembers = group.memberIds.isEmpty
+        ? <String>[]
+        : group.memberIds.split(',').toList();
+
+    if (!currentMembers.contains(userId)) {
+      currentMembers.add(userId);
+
+      // Aggiorniamo il gruppo locale e lo marchiamo come da sincronizzare
+      await (update(groupsTable)..where((t) => t.id.equals(groupId))).write(
+        GroupsTableCompanion(
+          memberIds: Value(currentMembers.join(',')),
+          isSynced: const Value(false),
+          hlc: Value(newHlc),
+        ),
+      );
+    }
+  }
 }
