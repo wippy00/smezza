@@ -60,6 +60,19 @@ class PocketbaseRepository implements SyncRepository {
     await prefs.setString('pb_auth_model', jsonEncode(_pb.authStore.model));
   }
 
+  String? _encodeDate(int? epochMillis) {
+    if (epochMillis == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(
+      epochMillis,
+      isUtc: true,
+    ).toIso8601String();
+  }
+
+  int? _decodeDate(String raw) {
+    if (raw.isEmpty) return null;
+    return DateTime.parse(raw).toUtc().millisecondsSinceEpoch;
+  }
+
   Future<void> logout() async {
     _pb.authStore.clear();
     final prefs = await SharedPreferences.getInstance();
@@ -179,7 +192,7 @@ class PocketbaseRepository implements SyncRepository {
           'description': e['description'],
           'amount': e['amount'],
           'currency_code': e['currencyCode'],
-          'date': e['date'],
+          'date': _encodeDate(e['date'] as int?),
           'split_type': e['splitType'],
           'signature': e['signature'],
           'hlc': e['hlc'],
@@ -301,11 +314,11 @@ class PocketbaseRepository implements SyncRepository {
               'id': r.id,
               'groupId': r.getStringValue('group_id'),
               'payerId': r.getStringValue('creator_id'),
-              'categoryId': r.getStringValue('category_id'), // AGGIUNTO
+              'categoryId': r.getStringValue('category_id'),
               'description': r.getStringValue('description'),
               'amount': r.getDoubleValue('amount'),
               'currencyCode': r.getStringValue('currency_code'),
-              'date': r.getStringValue('date'), // AGGIUNTO
+              'date': _decodeDate(r.getStringValue('date')),
               'splitType': r.getStringValue('split_type'),
               'signature': r.getStringValue('signature'),
               'hlc': r.getStringValue('hlc'),

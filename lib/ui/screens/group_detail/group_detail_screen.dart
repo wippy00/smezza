@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:smezza/domain/debt/debt_simplifier.dart';
 import 'package:smezza/ui/screens/group_detail/group_settings_screen.dart';
 import '../../providers/expenses_provider.dart';
+import '../../providers/users_provider.dart';
 import '/data/database.dart';
 import '/core/identity/identity_manager.dart';
 import '../add_expense/add_expense_screen.dart';
@@ -27,6 +28,16 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
 
     final expensesAsync = ref.watch(expensesProvider(widget.group.id));
     final debtsAsync = ref.watch(simplifiedDebtsProvider(widget.group.id));
+    final membersAsync = ref.watch(groupMembersProvider(widget.group.id));
+
+    // Mappa id -> nome per mostrare sempre nomi leggibili invece degli UUID
+    final namesById = <String, String>{};
+    membersAsync.whenData((members) {
+      for (final m in members) {
+        namesById[m.id] = m.isMe ? 'Tu' : m.name;
+      }
+    });
+    String nameFor(String id) => namesById[id] ?? 'Utente sconosciuto';
 
     return DefaultTabController(
       length: 2,
@@ -34,6 +45,12 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         appBar: AppBar(
           title: Text(widget.group.name),
           actions: [
+            // Feedback visivo: le impostazioni/dati del gruppo non ancora
+            // sincronizzati col server (non solo le singole spese).
+            _SyncStatusIcon(
+              isSynced: widget.group.isSynced,
+              syncError: widget.group.syncError,
+            ),
             IconButton(
               icon: const Icon(Icons.settings_outlined),
               onPressed: () => Navigator.push(
@@ -127,7 +144,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                               ),
                             ),
                             subtitle: Text(
-                              '$roleText • Da ${expense.payerId.substring(0, 6)}...',
+                              '$roleText • Da ${nameFor(expense.payerId)}',
                               style: TextStyle(color: itemColor, fontSize: 12),
                             ),
                             trailing: Row(
@@ -193,8 +210,8 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 ),
                 Expanded(
                   child: _simplifyDebts
-                      ? _buildSimplifiedDebts(debtsAsync)
-                      : _buildRawBalances(db, widget.group.id, myId),
+                      ? _buildSimplifiedDebts(debtsAsync, nameFor)
+                      : _buildRawBalances(db, widget.group.id, nameFor),
                 ),
               ],
             ),
@@ -217,6 +234,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
 
   Widget _buildSimplifiedDebts(
     AsyncValue<Map<String, List<Settlement>>> debtsAsync,
+    String Function(String id) nameFor,
   ) {
     return debtsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -267,8 +285,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                                 style: Theme.of(context).textTheme.bodyLarge,
                                 children: [
                                   TextSpan(
-                                    text:
-                                        '${settlement.from.substring(0, 6)}... ',
+                                    text: '${nameFor(settlement.from)} ',
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -286,7 +303,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                                   ),
                                   const TextSpan(text: 'a '),
                                   TextSpan(
-                                    text: '${settlement.to.substring(0, 6)}...',
+                                    text: nameFor(settlement.to),
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -308,9 +325,15 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     );
   }
 
-  Widget _buildRawBalances(AppDatabase db, String groupId, String myId) {
-    return FutureBuilder<Map<String, Map<String, double>>>(
-      future: db.expensesDao.getNetBalancesByCurrency(groupId),
+  // Senza semplificazione: mostriamo esattamente chi deve dare cosa a chi,
+  // invece del solo saldo netto "nel gruppo" (che non diceva a chi ridare i soldi).
+  Widget _buildRawBalances(
+    AppDatabase db,
+    String groupId,
+    String Function(String id) nameFor,
+  ) {
+    return FutureBuilder<Map<String, Map<String, Map<String, double>>>>(
+      future: db.expensesDao.getPairwiseDebtsByCurrency(groupId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -326,7 +349,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         if (entries.isEmpty) {
           return const Center(
             child: Text(
-              'Ancora nessun saldo da calcolare.',
+              'Tutti i conti sono in pari! 🎉',
               style: TextStyle(color: Colors.grey),
             ),
           );
@@ -336,7 +359,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           children: entries.map((curEntry) {
             final currency = curEntry.key;
-            final list = curEntry.value.entries.toList();
+            final debtorEntries = curEntry.value.entries.toList();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -350,56 +373,56 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                     ),
                   ),
                 ),
-                ...list.map((entry) {
-                  final userId = entry.key;
-                  final amount = entry.value;
-
-                  final bool isMe = userId == myId;
-                  final String name = isMe
-                      ? 'Tu'
-                      : '${userId.substring(0, 8)}...';
-
-                  Color balanceColor;
-                  String textType;
-                  IconData balanceIcon;
-
-                  if (amount > 0) {
-                    balanceColor = Colors.green.shade700;
-                    textType = 'spetta ricevere';
-                    balanceIcon = Icons.add_circle_outline_rounded;
-                  } else if (amount < 0) {
-                    balanceColor = Colors.red.shade700;
-                    textType = 'deve dare';
-                    balanceIcon = Icons.remove_circle_outline_rounded;
-                  } else {
-                    balanceColor = Colors.grey.shade600;
-                    textType = 'è in pari';
-                    balanceIcon = Icons.check_circle_outline_rounded;
-                  }
-
-                  return Card(
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    child: ListTile(
-                      leading: Icon(balanceIcon, color: balanceColor),
-                      title: Text(
-                        name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text(
-                        '$textType nel gruppo',
-                        style: TextStyle(color: balanceColor),
-                      ),
-                      trailing: Text(
-                        '${amount.abs().toStringAsFixed(2)} $currency',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: balanceColor,
+                for (final debtorEntry in debtorEntries)
+                  for (final creditorEntry in debtorEntry.value.entries)
+                    Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.swap_horiz,
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                  children: [
+                                    TextSpan(
+                                      text: '${nameFor(debtorEntry.key)} ',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const TextSpan(text: 'deve dare '),
+                                    TextSpan(
+                                      text:
+                                          '${creditorEntry.value.toStringAsFixed(2)} $currency ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.error,
+                                      ),
+                                    ),
+                                    const TextSpan(text: 'a '),
+                                    TextSpan(
+                                      text: nameFor(creditorEntry.key),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  );
-                }),
               ],
             );
           }).toList(),

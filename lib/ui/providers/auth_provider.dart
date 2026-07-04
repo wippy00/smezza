@@ -27,9 +27,10 @@ class AuthNotifier extends Notifier<bool> {
 
     if (recoveryKey != null && recoveryKey.trim().isNotEmpty) {
       await identity.importKey(recoveryKey.trim());
+      await identity
+          .confirmBackup();
     }
 
-    // Verifica ANCHE se non c'è recovery: la chiave locale deve combaciare col server
     final match = await repo.verifyIdentityMatchesServer(email, password);
     if (!match) {
       throw Exception(
@@ -38,10 +39,7 @@ class AuthNotifier extends Notifier<bool> {
     }
 
     await repo.login(email, password);
-
-    final syncService = GetIt.I<SyncService>();
-    await syncService.pullRemoteChanges();
-
+    await GetIt.I<SyncService>().pullRemoteChanges();
     state = true;
   }
 

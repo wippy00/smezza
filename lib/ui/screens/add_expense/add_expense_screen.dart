@@ -25,12 +25,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   String? _selectedPayerId;
   final Set<String> _selectedParticipants = {};
+  late String _selectedCurrency;
+
+  static const _commonCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
+  static const _currencySymbols = {
+    'EUR': '€',
+    'USD': '\$',
+    'GBP': '£',
+    'CHF': 'CHF',
+  };
 
   @override
   void initState() {
     super.initState();
     // Pre-selezioniamo "Me" (l'utente locale) come pagatore predefinito
     _selectedPayerId = GetIt.I<IdentityService>().uuid;
+    // Default: la valuta del gruppo, ma resta modificabile per singola spesa
+    _selectedCurrency = widget.group.currencyCode;
   }
 
   void _saveExpense() async {
@@ -68,7 +79,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     // --- CALCOLO DELLA FIRMA DELLA SPESA ---
     // Payload canonico: "id|groupId|payerId|amount|currency|hlc"
     final payload =
-        '$expenseId|${widget.group.id}|$_selectedPayerId|$amount|${widget.group.currencyCode}|${hlc.toString()}';
+        '$expenseId|${widget.group.id}|$_selectedPayerId|$amount|$_selectedCurrency|${hlc.toString()}';
     final signature = await identity.sign(payload);
     // ----------------------------------------
 
@@ -78,7 +89,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       payerId: _selectedPayerId!,
       description: desc,
       amount: amount,
-      currencyCode: widget.group.currencyCode,
+      currencyCode: _selectedCurrency,
       date: Value(
         DateTime.now(),
       ), // AGGIUNTO: TODO collegare un date picker in UI
@@ -169,12 +180,30 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
                 ],
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Importo',
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.attach_money_outlined),
-                  suffixText: widget.group.currencyCode,
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.attach_money_outlined),
                 ),
+              ),
+              const SizedBox(height: 16),
+
+              // Valuta della spesa (indipendente da quella di default del gruppo)
+              DropdownButtonFormField<String>(
+                initialValue: _commonCurrencies.contains(_selectedCurrency)
+                    ? _selectedCurrency
+                    : _commonCurrencies.first,
+                decoration: const InputDecoration(
+                  labelText: 'Valuta',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.currency_exchange_outlined),
+                ),
+                items: _commonCurrencies
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedCurrency = val);
+                },
               ),
               const SizedBox(height: 24),
 

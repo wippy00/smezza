@@ -251,12 +251,33 @@ class HomeScreen extends ConsumerWidget {
                       position: details.globalPosition,
                     ),
                     child: ListTile(
-                      trailing: IconButton(
-                        icon: const Icon(
-                          Icons.delete_outline,
-                          color: Colors.red,
-                        ),
-                        onPressed: () => _confirmDeleteGroup(context, group),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!group.isSynced)
+                            Tooltip(
+                              message:
+                                  group.syncError ??
+                                  'In attesa di sincronizzazione',
+                              child: Icon(
+                                group.syncError != null
+                                    ? Icons.error_outline
+                                    : Icons.cloud_upload_outlined,
+                                color: group.syncError != null
+                                    ? Colors.orange
+                                    : Colors.grey,
+                                size: 20,
+                              ),
+                            ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.red,
+                            ),
+                            onPressed: () =>
+                                _confirmDeleteGroup(context, group),
+                          ),
+                        ],
                       ),
                       leading: const CircleAvatar(
                         child: Icon(Icons.group_outlined),
