@@ -16,7 +16,7 @@ class AccountScreen extends ConsumerStatefulWidget {
   ConsumerState<AccountScreen> createState() => _AccountScreenState();
 }
 
-class _AuthScreenState {} // Ignora, serve solo a Riverpod internamente
+// class _AuthScreenState {} // Ignora, serve solo a Riverpod internamente
 
 class _AccountScreenState extends ConsumerState<AccountScreen> {
   String _privateKeyB64 = '';

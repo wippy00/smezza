@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/ui/screens/group_detail/group_settings_screen.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../providers/groups_provider.dart';
 import '../../../data/database.dart';
-import '../../../core/hlc/hlc_manager.dart';
 import '../../../core/identity/identity_manager.dart';
-import '../group_detail/group_detail_screen.dart';
 
 import '/sync/sync_service.dart';
+import '../group_detail/group_detail_screen.dart';
 
 import 'package:drift/drift.dart' show Value;
 
@@ -134,6 +134,38 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
+  void _showGroupContextMenu(
+    BuildContext context,
+    GroupsTableData group, {
+    Offset? position,
+  }) {
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final tapPos = position ?? overlay.size.center(Offset.zero);
+    showMenu(
+      context: context,
+      position: RelativeRect.fromLTRB(
+        tapPos.dx,
+        tapPos.dy,
+        overlay.size.width - tapPos.dx,
+        overlay.size.height - tapPos.dy,
+      ),
+      items: const [
+        PopupMenuItem(value: 'settings', child: Text('Impostazioni')),
+        PopupMenuItem(value: 'delete', child: Text('Elimina')),
+      ],
+    ).then((value) {
+      if (!context.mounted || value == null) return;
+      if (value == 'settings') {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => GroupSettingsScreen(group: group)),
+        );
+      } else if (value == 'delete') {
+        _confirmDeleteGroup(context, group);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // ref.watch si mette in ascolto del provider.
@@ -205,28 +237,36 @@ class HomeScreen extends ConsumerWidget {
                 final group = groups[index];
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 6),
-                  child: ListTile(
-                    leading: const CircleAvatar(
-                      child: Icon(Icons.group_outlined),
+                  child: InkWell(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupDetailScreen(group: group),
+                      ),
                     ),
-                    title: Text(
-                      group.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    onLongPress: () => _showGroupContextMenu(context, group),
+                    onSecondaryTapDown: (details) => _showGroupContextMenu(
+                      context,
+                      group,
+                      position: details.globalPosition,
                     ),
-                    subtitle: Text('Valuta: ${group.currencyCode}'),
-                    // Aggiungiamo il tasto cestino
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete_outline, color: Colors.red),
-                      onPressed: () => _confirmDeleteGroup(context, group),
-                    ),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => GroupDetailScreen(group: group),
+                    child: ListTile(
+                      trailing: IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: Colors.red,
                         ),
-                      );
-                    },
+                        onPressed: () => _confirmDeleteGroup(context, group),
+                      ),
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.group_outlined),
+                      ),
+                      title: Text(
+                        group.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text('Valuta: ${group.currencyCode}'),
+                    ),
                   ),
                 );
               },

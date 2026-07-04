@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/ui/screens/group_detail/group_settings_screen.dart';
 import '../../providers/expenses_provider.dart';
-import '../../providers/users_provider.dart';
 import '/data/database.dart';
-import '/core/hlc/hlc_manager.dart';
 import '/core/identity/identity_manager.dart';
 import '../add_expense/add_expense_screen.dart';
 
@@ -19,101 +18,6 @@ class GroupDetailScreen extends ConsumerStatefulWidget {
 
 class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
   bool _simplifyDebts = true;
-
-  // Mostra l'elenco dei membri attuali e permette di aggiungerne di nuovi
-  void _showGroupMembersDialog(BuildContext context) {
-    final db = GetIt.I<AppDatabase>();
-    final identity = GetIt.I<IdentityService>();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return Consumer(
-          builder: (context, ref, _) {
-            final usersAsync = ref.watch(allUsersProvider);
-
-            return AlertDialog(
-              title: const Text('Partecipanti al Gruppo'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: usersAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (err, _) => Text('Errore: $err'),
-                  data: (allUsers) {
-                    // Otteniamo la lista attuale dei membri del gruppo dal database locale
-                    return StreamBuilder<GroupsTableData>(
-                      stream:
-                          (db.select(db.groupsTable)
-                                ..where((t) => t.id.equals(widget.group.id)))
-                              .watchSingle(),
-                      builder: (context, snapshot) {
-                        if (!snapshot.hasData)
-                          return const CircularProgressIndicator();
-
-                        final currentGroup = snapshot.data!;
-                        final memberIdsList = currentGroup.memberIds.isEmpty
-                            ? <String>[]
-                            : currentGroup.memberIds.split(',');
-
-                        return ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: allUsers.length,
-                          itemBuilder: (context, index) {
-                            final user = allUsers[index];
-                            final isMember = memberIdsList.contains(user.id);
-
-                            return ListTile(
-                              leading: CircleAvatar(
-                                child: Icon(
-                                  user.isMe
-                                      ? Icons.star_border
-                                      : Icons.person_outline,
-                                ),
-                              ),
-                              title: Text(user.isMe ? 'Tu' : user.name),
-                              trailing: isMember
-                                  ? const Icon(
-                                      Icons.check_circle,
-                                      color: Colors.green,
-                                    )
-                                  : TextButton.icon(
-                                      icon: const Icon(
-                                        Icons.person_add,
-                                        size: 16,
-                                      ),
-                                      label: const Text('Aggiungi'),
-                                      onPressed: () async {
-                                        final hlc = identity.nextHlc();
-                                        // Aggiungiamo l'amico al gruppo locale
-                                        await db.groupsDao.addMemberToGroup(
-                                          widget.group.id,
-                                          user.id,
-                                          hlc.toString(),
-                                        );
-                                      },
-                                    ),
-                            );
-                          },
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-              actions: [
-                FilledButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Chiudi'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final myId = GetIt.I<IdentityService>().uuid;
@@ -128,11 +32,15 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         appBar: AppBar(
           title: Text(widget.group.name),
           actions: [
-            // ---> PULSANTE IN ALTO A DESTRA PER AGGIUNGERE UTENTI AL GRUPPO <---
             IconButton(
-              icon: const Icon(Icons.group_add_outlined),
-              tooltip: 'Gestisci partecipanti',
-              onPressed: () => _showGroupMembersDialog(context),
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      GroupSettingsScreen(group: widget.group),
+                ),
+              ),
             ),
           ],
           bottom: const TabBar(

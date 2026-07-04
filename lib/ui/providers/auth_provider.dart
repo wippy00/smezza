@@ -1,7 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '/sync/sync_repository.dart';
 import '/data/remote/pocketbase_repository.dart';
 import '/core/identity/identity_manager.dart';

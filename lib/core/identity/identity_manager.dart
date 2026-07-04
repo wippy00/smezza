@@ -96,8 +96,9 @@ class IdentityService {
   }
 
   Future<String> sign(String message) async {
-    if (_cachedKeyPair == null)
+    if (_cachedKeyPair == null) {
       throw Exception("IdentityService not initialized");
+    }
 
     final messageBytes = utf8.encode(message);
     final signature = await _algorithm.sign(
@@ -156,8 +157,9 @@ class IdentityService {
   Future<void> importKey(String pastedSeed) async {
     final clean = _normalize(pastedSeed);
     final bytes = base64Url.decode(clean);
-    if (bytes.length != 32)
+    if (bytes.length != 32) {
       throw Exception('Chiave non valida (lunghezza errata)');
+    }
     await _secureStorage.write(key: _storageSlot, value: clean);
     await init(); // ricarica tutto da storage
   }
