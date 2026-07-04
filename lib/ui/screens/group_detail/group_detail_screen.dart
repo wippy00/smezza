@@ -84,7 +84,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                                       ),
                                       label: const Text('Aggiungi'),
                                       onPressed: () async {
-                                        final hlc = Hlc.now(identity.uuid);
+                                        final hlc = identity.nextHlc();
                                         // Aggiungiamo l'amico al gruppo locale
                                         await db.groupsDao.addMemberToGroup(
                                           widget.group.id,
@@ -233,6 +233,10 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
+                                _SyncStatusIcon(
+                                  isSynced: expense.isSynced,
+                                  syncError: expense.syncError,
+                                ),
                                 IconButton(
                                   icon: const Icon(
                                     Icons.delete_outline,
@@ -241,7 +245,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                                   ),
                                   onPressed: () async {
                                     final identity = GetIt.I<IdentityService>();
-                                    final hlc = Hlc.now(identity.uuid);
+                                    final hlc = identity.nextHlc();
                                     await db.expensesDao.softDeleteExpense(
                                       expense.id,
                                       hlc.toString(),
@@ -465,5 +469,54 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         );
       },
     );
+  }
+}
+
+class _SyncStatusIcon extends StatelessWidget {
+  final bool isSynced;
+  final String? syncError;
+
+  const _SyncStatusIcon({required this.isSynced, required this.syncError});
+
+  @override
+  Widget build(BuildContext context) {
+    if (syncError != null) {
+      return IconButton(
+        icon: const Icon(Icons.error_outline, color: Colors.orange, size: 20),
+        tooltip: 'Errore di sincronizzazione (tocca per i dettagli)',
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Sincronizzazione fallita'),
+              content: Text(syncError!),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Ok'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    if (!isSynced) {
+      return const Tooltip(
+        message: 'In attesa di sincronizzazione',
+        child: Padding(
+          padding: EdgeInsets.only(right: 4),
+          child: Icon(
+            Icons.cloud_upload_outlined,
+            color: Colors.grey,
+            size: 18,
+          ),
+        ),
+      );
+    }
+
+    // Sincronizzata senza errori: niente icona, lista pulita.
+    return const SizedBox.shrink();
   }
 }

@@ -8,6 +8,7 @@ import '../../sync/sync_repository.dart';
 import '../../sync/merge_engine.dart';
 import '../../core/identity/identity_manager.dart';
 import '../../core/hlc/hlc_manager.dart';
+import '../../sync/push_result.dart';
 
 class PocketbaseRepository implements SyncRepository {
   final PocketBase _pb;
@@ -122,52 +123,103 @@ class PocketbaseRepository implements SyncRepository {
   }
 
   @override
-  Future<void> push(SyncPacket packet) async {
-    if (!isLoggedIn) return;
+  Future<PushResult> push(SyncPacket packet) async {
+    if (!isLoggedIn) return const PushResult();
 
     _statusController.add(SyncStatus.syncing);
-    try {
-      for (final g in packet.groups) {
-        await _upsertRecord('groups', g['id'], {
+
+    final succeededGroupIds = <String>{};
+    final succeededExpenseIds = <String>{};
+    final succeededSplitIds = <String>{};
+    final failedGroupErrors = <String, String>{};
+    final failedExpenseErrors = <String, String>{};
+    final failedSplitErrors = <String, String>{};
+
+    for (final g in packet.groups) {
+      final id = g['id'] as String;
+      try {
+        await _upsertRecord('groups', id, {
           'name': g['name'],
           'currency_code': g['currencyCode'],
           'owner_id': g['ownerId'],
           'signature': g['signature'],
           'hlc': g['hlc'],
           'is_deleted': g['isDeleted'],
-          'member_ids':
-              g['memberIds'], // <--- AGGIUNTO IL SYNC DEI PARTECIPANTI VERSO POCKETBASE
+          'member_ids': g['memberIds'],
         });
+        succeededGroupIds.add(id);
+      } catch (err) {
+        failedGroupErrors[id] = _describeError(err);
+        print('PocketbaseRepository [push]: gruppo $id fallito: $err');
       }
+    }
 
-      for (final e in packet.expenses) {
-        await _upsertRecord('expenses', e['id'], {
+    for (final e in packet.expenses) {
+      final id = e['id'] as String;
+      try {
+        await _upsertRecord('expenses', id, {
           'group_id': e['groupId'],
           'creator_id': e['payerId'],
+          'category_id': e['categoryId'],
           'description': e['description'],
           'amount': e['amount'],
           'currency_code': e['currencyCode'],
+          'date': e['date'],
           'split_type': e['splitType'],
           'signature': e['signature'],
           'hlc': e['hlc'],
           'is_deleted': e['isDeleted'],
         });
+        succeededExpenseIds.add(id);
+      } catch (err) {
+        failedExpenseErrors[id] = _describeError(err);
+        print('PocketbaseRepository [push]: spesa $id fallita: $err');
       }
+    }
 
-      for (final s in packet.splits) {
-        await _upsertRecord('expense_splits', s['id'], {
+    for (final s in packet.splits) {
+      final id = s['id'] as String;
+      try {
+        await _upsertRecord('expense_splits', id, {
           'expense_id': s['expenseId'],
           'user_id': s['userId'],
           'calculated_amount': s['calculatedAmount'],
           'raw_value': s['rawValue'],
+          'hlc': s['hlc'],
+          'is_deleted': s['isDeleted'],
         });
+        succeededSplitIds.add(id);
+      } catch (err) {
+        failedSplitErrors[id] = _describeError(err);
+        print('PocketbaseRepository [push]: split $id fallito: $err');
       }
-
-      _statusController.add(SyncStatus.connected);
-    } catch (e) {
-      _statusController.add(SyncStatus.error);
-      rethrow;
     }
+
+    final anyFailure =
+        failedGroupErrors.isNotEmpty ||
+        failedExpenseErrors.isNotEmpty ||
+        failedSplitErrors.isNotEmpty;
+
+    _statusController.add(anyFailure ? SyncStatus.error : SyncStatus.connected);
+
+    return PushResult(
+      succeededGroupIds: succeededGroupIds,
+      succeededExpenseIds: succeededExpenseIds,
+      succeededSplitIds: succeededSplitIds,
+      failedGroupErrors: failedGroupErrors,
+      failedExpenseErrors: failedExpenseErrors,
+      failedSplitErrors: failedSplitErrors,
+    );
+  }
+
+  // Estrae un messaggio leggibile dall'errore, incluso il dettaglio che PocketBase
+  // di solito mette in `response['message']` (quello che hai incollato tu nel log).
+  String _describeError(Object err) {
+    if (err is ClientException) {
+      final message = err.response['message'] as String? ?? err.toString();
+      return 'HTTP ${err.statusCode}: $message';
+    }
+    return err.toString();
   }
 
   @override
@@ -178,7 +230,6 @@ class PocketbaseRepository implements SyncRepository {
     try {
       final filterQuery = 'hlc > "$sinceHlc"';
 
-      // 1. SCARICA ANCHE GLI UTENTI AGGIORNATI DA POCKETBASE
       final remoteUsers = await _pb
           .collection('users')
           .getFullList(filter: filterQuery);
@@ -201,14 +252,12 @@ class PocketbaseRepository implements SyncRepository {
         );
       }
 
-      // Converte gli Utenti
       final usersJson = remoteUsers
           .map(
             (r) => {
               'id': r.getStringValue('public_key'),
               'name': r.getStringValue('name'),
               'hlc': r.getStringValue('hlc'),
-              // Calcola in automatico se questo utente scaricato sei tu
               'isMe': r.getStringValue('public_key') == _identity.uuid,
               'isDeleted': false,
             },
@@ -237,9 +286,11 @@ class PocketbaseRepository implements SyncRepository {
               'id': r.id,
               'groupId': r.getStringValue('group_id'),
               'payerId': r.getStringValue('creator_id'),
+              'categoryId': r.getStringValue('category_id'), // AGGIUNTO
               'description': r.getStringValue('description'),
               'amount': r.getDoubleValue('amount'),
               'currencyCode': r.getStringValue('currency_code'),
+              'date': r.getStringValue('date'), // AGGIUNTO
               'splitType': r.getStringValue('split_type'),
               'signature': r.getStringValue('signature'),
               'hlc': r.getStringValue('hlc'),
@@ -257,6 +308,9 @@ class PocketbaseRepository implements SyncRepository {
               'userId': r.getStringValue('user_id'),
               'calculatedAmount': r.getDoubleValue('calculated_amount'),
               'rawValue': r.getDoubleValue('raw_value'),
+              'hlc': r.getStringValue('hlc'), // AGGIUNTO
+              'isDeleted': r.getBoolValue('is_deleted'), // AGGIUNTO
+              'isSynced': true,
             },
           )
           .toList();
@@ -264,7 +318,7 @@ class PocketbaseRepository implements SyncRepository {
       final packet = SyncPacket(
         senderUserId: _identity.uuid,
         sinceHlc: sinceHlc,
-        users: usersJson, // <--- AGGIUNTO IL SYNC DEI NOMI UTENTE
+        users: usersJson,
         groups: groupsJson,
         expenses: expensesJson,
         splits: splitsJson,

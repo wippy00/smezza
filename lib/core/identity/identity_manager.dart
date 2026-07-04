@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../hlc/hlc_manager.dart';
 
 class IdentityService {
   final FlutterSecureStorage _secureStorage;
@@ -10,6 +11,7 @@ class IdentityService {
 
   SimpleKeyPair? _cachedKeyPair;
   String? _cachedPublicKeyBase64;
+  Hlc? _lastHlc;
 
   // Accettiamo lo storage nel costruttore: questo ci permette di
   // passare uno storage "finto" (mock) durante i test!
@@ -43,6 +45,12 @@ class IdentityService {
       throw Exception("IdentityService not initialized");
     }
     return _cachedPublicKeyBase64!;
+  }
+
+  Hlc nextHlc() {
+    final hlc = Hlc.now(uuid, lastKnown: _lastHlc);
+    _lastHlc = hlc;
+    return hlc;
   }
 
   Future<String> sign(String message) async {

@@ -463,6 +463,17 @@ class $GroupsTableTable extends GroupsTable
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _syncErrorMeta = const VerificationMeta(
+    'syncError',
+  );
+  @override
+  late final GeneratedColumn<String> syncError = GeneratedColumn<String>(
+    'sync_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -474,6 +485,7 @@ class $GroupsTableTable extends GroupsTable
     memberIds,
     isDeleted,
     isSynced,
+    syncError,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -551,6 +563,12 @@ class $GroupsTableTable extends GroupsTable
         isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
       );
     }
+    if (data.containsKey('sync_error')) {
+      context.handle(
+        _syncErrorMeta,
+        syncError.isAcceptableOrUnknown(data['sync_error']!, _syncErrorMeta),
+      );
+    }
     return context;
   }
 
@@ -596,6 +614,10 @@ class $GroupsTableTable extends GroupsTable
         DriftSqlType.bool,
         data['${effectivePrefix}is_synced'],
       )!,
+      syncError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_error'],
+      ),
     );
   }
 
@@ -615,6 +637,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
   final String memberIds;
   final bool isDeleted;
   final bool isSynced;
+  final String? syncError;
   const GroupsTableData({
     required this.id,
     required this.name,
@@ -625,6 +648,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     required this.memberIds,
     required this.isDeleted,
     required this.isSynced,
+    this.syncError,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -640,6 +664,9 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     map['member_ids'] = Variable<String>(memberIds);
     map['is_deleted'] = Variable<bool>(isDeleted);
     map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || syncError != null) {
+      map['sync_error'] = Variable<String>(syncError);
+    }
     return map;
   }
 
@@ -656,6 +683,9 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       memberIds: Value(memberIds),
       isDeleted: Value(isDeleted),
       isSynced: Value(isSynced),
+      syncError: syncError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncError),
     );
   }
 
@@ -674,6 +704,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       memberIds: serializer.fromJson<String>(json['memberIds']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      syncError: serializer.fromJson<String?>(json['syncError']),
     );
   }
   @override
@@ -689,6 +720,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       'memberIds': serializer.toJson<String>(memberIds),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'syncError': serializer.toJson<String?>(syncError),
     };
   }
 
@@ -702,6 +734,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     String? memberIds,
     bool? isDeleted,
     bool? isSynced,
+    Value<String?> syncError = const Value.absent(),
   }) => GroupsTableData(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -712,6 +745,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     memberIds: memberIds ?? this.memberIds,
     isDeleted: isDeleted ?? this.isDeleted,
     isSynced: isSynced ?? this.isSynced,
+    syncError: syncError.present ? syncError.value : this.syncError,
   );
   GroupsTableData copyWithCompanion(GroupsTableCompanion data) {
     return GroupsTableData(
@@ -726,6 +760,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       memberIds: data.memberIds.present ? data.memberIds.value : this.memberIds,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      syncError: data.syncError.present ? data.syncError.value : this.syncError,
     );
   }
 
@@ -740,7 +775,8 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
           ..write('signature: $signature, ')
           ..write('memberIds: $memberIds, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('syncError: $syncError')
           ..write(')'))
         .toString();
   }
@@ -756,6 +792,7 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     memberIds,
     isDeleted,
     isSynced,
+    syncError,
   );
   @override
   bool operator ==(Object other) =>
@@ -769,7 +806,8 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
           other.signature == this.signature &&
           other.memberIds == this.memberIds &&
           other.isDeleted == this.isDeleted &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.syncError == this.syncError);
 }
 
 class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
@@ -782,6 +820,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
   final Value<String> memberIds;
   final Value<bool> isDeleted;
   final Value<bool> isSynced;
+  final Value<String?> syncError;
   final Value<int> rowid;
   const GroupsTableCompanion({
     this.id = const Value.absent(),
@@ -793,6 +832,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     this.memberIds = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.syncError = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   GroupsTableCompanion.insert({
@@ -805,6 +845,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     this.memberIds = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.syncError = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -821,6 +862,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     Expression<String>? memberIds,
     Expression<bool>? isDeleted,
     Expression<bool>? isSynced,
+    Expression<String>? syncError,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -833,6 +875,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
       if (memberIds != null) 'member_ids': memberIds,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (isSynced != null) 'is_synced': isSynced,
+      if (syncError != null) 'sync_error': syncError,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -847,6 +890,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     Value<String>? memberIds,
     Value<bool>? isDeleted,
     Value<bool>? isSynced,
+    Value<String?>? syncError,
     Value<int>? rowid,
   }) {
     return GroupsTableCompanion(
@@ -859,6 +903,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
       memberIds: memberIds ?? this.memberIds,
       isDeleted: isDeleted ?? this.isDeleted,
       isSynced: isSynced ?? this.isSynced,
+      syncError: syncError ?? this.syncError,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -893,6 +938,9 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (syncError.present) {
+      map['sync_error'] = Variable<String>(syncError.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -911,6 +959,7 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
           ..write('memberIds: $memberIds, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('isSynced: $isSynced, ')
+          ..write('syncError: $syncError, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -954,6 +1003,17 @@ class $ExpensesTableTable extends ExpensesTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _categoryIdMeta = const VerificationMeta(
+    'categoryId',
+  );
+  @override
+  late final GeneratedColumn<String> categoryId = GeneratedColumn<String>(
+    'category_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _descriptionMeta = const VerificationMeta(
     'description',
   );
@@ -984,6 +1044,15 @@ class $ExpensesTableTable extends ExpensesTable
     false,
     type: DriftSqlType.string,
     requiredDuringInsert: true,
+  );
+  static const VerificationMeta _dateMeta = const VerificationMeta('date');
+  @override
+  late final GeneratedColumn<DateTime> date = GeneratedColumn<DateTime>(
+    'date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
   );
   static const VerificationMeta _splitTypeMeta = const VerificationMeta(
     'splitType',
@@ -1046,19 +1115,33 @@ class $ExpensesTableTable extends ExpensesTable
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _syncErrorMeta = const VerificationMeta(
+    'syncError',
+  );
+  @override
+  late final GeneratedColumn<String> syncError = GeneratedColumn<String>(
+    'sync_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
     groupId,
     payerId,
+    categoryId,
     description,
     amount,
     currencyCode,
+    date,
     splitType,
     signature,
     hlc,
     isDeleted,
     isSynced,
+    syncError,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1093,6 +1176,12 @@ class $ExpensesTableTable extends ExpensesTable
     } else if (isInserting) {
       context.missing(_payerIdMeta);
     }
+    if (data.containsKey('category_id')) {
+      context.handle(
+        _categoryIdMeta,
+        categoryId.isAcceptableOrUnknown(data['category_id']!, _categoryIdMeta),
+      );
+    }
     if (data.containsKey('description')) {
       context.handle(
         _descriptionMeta,
@@ -1122,6 +1211,12 @@ class $ExpensesTableTable extends ExpensesTable
       );
     } else if (isInserting) {
       context.missing(_currencyCodeMeta);
+    }
+    if (data.containsKey('date')) {
+      context.handle(
+        _dateMeta,
+        date.isAcceptableOrUnknown(data['date']!, _dateMeta),
+      );
     }
     if (data.containsKey('split_type')) {
       context.handle(
@@ -1157,6 +1252,12 @@ class $ExpensesTableTable extends ExpensesTable
         isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
       );
     }
+    if (data.containsKey('sync_error')) {
+      context.handle(
+        _syncErrorMeta,
+        syncError.isAcceptableOrUnknown(data['sync_error']!, _syncErrorMeta),
+      );
+    }
     return context;
   }
 
@@ -1178,6 +1279,10 @@ class $ExpensesTableTable extends ExpensesTable
         DriftSqlType.string,
         data['${effectivePrefix}payer_id'],
       )!,
+      categoryId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category_id'],
+      ),
       description: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}description'],
@@ -1190,6 +1295,10 @@ class $ExpensesTableTable extends ExpensesTable
         DriftSqlType.string,
         data['${effectivePrefix}currency_code'],
       )!,
+      date: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}date'],
+      ),
       splitType: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}split_type'],
@@ -1210,6 +1319,10 @@ class $ExpensesTableTable extends ExpensesTable
         DriftSqlType.bool,
         data['${effectivePrefix}is_synced'],
       )!,
+      syncError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_error'],
+      ),
     );
   }
 
@@ -1224,26 +1337,32 @@ class ExpensesTableData extends DataClass
   final String id;
   final String groupId;
   final String payerId;
+  final String? categoryId;
   final String description;
   final double amount;
   final String currencyCode;
+  final DateTime? date;
   final String splitType;
   final String? signature;
   final String hlc;
   final bool isDeleted;
   final bool isSynced;
+  final String? syncError;
   const ExpensesTableData({
     required this.id,
     required this.groupId,
     required this.payerId,
+    this.categoryId,
     required this.description,
     required this.amount,
     required this.currencyCode,
+    this.date,
     required this.splitType,
     this.signature,
     required this.hlc,
     required this.isDeleted,
     required this.isSynced,
+    this.syncError,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1251,9 +1370,15 @@ class ExpensesTableData extends DataClass
     map['id'] = Variable<String>(id);
     map['group_id'] = Variable<String>(groupId);
     map['payer_id'] = Variable<String>(payerId);
+    if (!nullToAbsent || categoryId != null) {
+      map['category_id'] = Variable<String>(categoryId);
+    }
     map['description'] = Variable<String>(description);
     map['amount'] = Variable<double>(amount);
     map['currency_code'] = Variable<String>(currencyCode);
+    if (!nullToAbsent || date != null) {
+      map['date'] = Variable<DateTime>(date);
+    }
     map['split_type'] = Variable<String>(splitType);
     if (!nullToAbsent || signature != null) {
       map['signature'] = Variable<String>(signature);
@@ -1261,6 +1386,9 @@ class ExpensesTableData extends DataClass
     map['hlc'] = Variable<String>(hlc);
     map['is_deleted'] = Variable<bool>(isDeleted);
     map['is_synced'] = Variable<bool>(isSynced);
+    if (!nullToAbsent || syncError != null) {
+      map['sync_error'] = Variable<String>(syncError);
+    }
     return map;
   }
 
@@ -1269,9 +1397,13 @@ class ExpensesTableData extends DataClass
       id: Value(id),
       groupId: Value(groupId),
       payerId: Value(payerId),
+      categoryId: categoryId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(categoryId),
       description: Value(description),
       amount: Value(amount),
       currencyCode: Value(currencyCode),
+      date: date == null && nullToAbsent ? const Value.absent() : Value(date),
       splitType: Value(splitType),
       signature: signature == null && nullToAbsent
           ? const Value.absent()
@@ -1279,6 +1411,9 @@ class ExpensesTableData extends DataClass
       hlc: Value(hlc),
       isDeleted: Value(isDeleted),
       isSynced: Value(isSynced),
+      syncError: syncError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncError),
     );
   }
 
@@ -1291,14 +1426,17 @@ class ExpensesTableData extends DataClass
       id: serializer.fromJson<String>(json['id']),
       groupId: serializer.fromJson<String>(json['groupId']),
       payerId: serializer.fromJson<String>(json['payerId']),
+      categoryId: serializer.fromJson<String?>(json['categoryId']),
       description: serializer.fromJson<String>(json['description']),
       amount: serializer.fromJson<double>(json['amount']),
       currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      date: serializer.fromJson<DateTime?>(json['date']),
       splitType: serializer.fromJson<String>(json['splitType']),
       signature: serializer.fromJson<String?>(json['signature']),
       hlc: serializer.fromJson<String>(json['hlc']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      syncError: serializer.fromJson<String?>(json['syncError']),
     );
   }
   @override
@@ -1308,14 +1446,17 @@ class ExpensesTableData extends DataClass
       'id': serializer.toJson<String>(id),
       'groupId': serializer.toJson<String>(groupId),
       'payerId': serializer.toJson<String>(payerId),
+      'categoryId': serializer.toJson<String?>(categoryId),
       'description': serializer.toJson<String>(description),
       'amount': serializer.toJson<double>(amount),
       'currencyCode': serializer.toJson<String>(currencyCode),
+      'date': serializer.toJson<DateTime?>(date),
       'splitType': serializer.toJson<String>(splitType),
       'signature': serializer.toJson<String?>(signature),
       'hlc': serializer.toJson<String>(hlc),
       'isDeleted': serializer.toJson<bool>(isDeleted),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'syncError': serializer.toJson<String?>(syncError),
     };
   }
 
@@ -1323,32 +1464,41 @@ class ExpensesTableData extends DataClass
     String? id,
     String? groupId,
     String? payerId,
+    Value<String?> categoryId = const Value.absent(),
     String? description,
     double? amount,
     String? currencyCode,
+    Value<DateTime?> date = const Value.absent(),
     String? splitType,
     Value<String?> signature = const Value.absent(),
     String? hlc,
     bool? isDeleted,
     bool? isSynced,
+    Value<String?> syncError = const Value.absent(),
   }) => ExpensesTableData(
     id: id ?? this.id,
     groupId: groupId ?? this.groupId,
     payerId: payerId ?? this.payerId,
+    categoryId: categoryId.present ? categoryId.value : this.categoryId,
     description: description ?? this.description,
     amount: amount ?? this.amount,
     currencyCode: currencyCode ?? this.currencyCode,
+    date: date.present ? date.value : this.date,
     splitType: splitType ?? this.splitType,
     signature: signature.present ? signature.value : this.signature,
     hlc: hlc ?? this.hlc,
     isDeleted: isDeleted ?? this.isDeleted,
     isSynced: isSynced ?? this.isSynced,
+    syncError: syncError.present ? syncError.value : this.syncError,
   );
   ExpensesTableData copyWithCompanion(ExpensesTableCompanion data) {
     return ExpensesTableData(
       id: data.id.present ? data.id.value : this.id,
       groupId: data.groupId.present ? data.groupId.value : this.groupId,
       payerId: data.payerId.present ? data.payerId.value : this.payerId,
+      categoryId: data.categoryId.present
+          ? data.categoryId.value
+          : this.categoryId,
       description: data.description.present
           ? data.description.value
           : this.description,
@@ -1356,11 +1506,13 @@ class ExpensesTableData extends DataClass
       currencyCode: data.currencyCode.present
           ? data.currencyCode.value
           : this.currencyCode,
+      date: data.date.present ? data.date.value : this.date,
       splitType: data.splitType.present ? data.splitType.value : this.splitType,
       signature: data.signature.present ? data.signature.value : this.signature,
       hlc: data.hlc.present ? data.hlc.value : this.hlc,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      syncError: data.syncError.present ? data.syncError.value : this.syncError,
     );
   }
 
@@ -1370,14 +1522,17 @@ class ExpensesTableData extends DataClass
           ..write('id: $id, ')
           ..write('groupId: $groupId, ')
           ..write('payerId: $payerId, ')
+          ..write('categoryId: $categoryId, ')
           ..write('description: $description, ')
           ..write('amount: $amount, ')
           ..write('currencyCode: $currencyCode, ')
+          ..write('date: $date, ')
           ..write('splitType: $splitType, ')
           ..write('signature: $signature, ')
           ..write('hlc: $hlc, ')
           ..write('isDeleted: $isDeleted, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('syncError: $syncError')
           ..write(')'))
         .toString();
   }
@@ -1387,14 +1542,17 @@ class ExpensesTableData extends DataClass
     id,
     groupId,
     payerId,
+    categoryId,
     description,
     amount,
     currencyCode,
+    date,
     splitType,
     signature,
     hlc,
     isDeleted,
     isSynced,
+    syncError,
   );
   @override
   bool operator ==(Object other) =>
@@ -1403,55 +1561,67 @@ class ExpensesTableData extends DataClass
           other.id == this.id &&
           other.groupId == this.groupId &&
           other.payerId == this.payerId &&
+          other.categoryId == this.categoryId &&
           other.description == this.description &&
           other.amount == this.amount &&
           other.currencyCode == this.currencyCode &&
+          other.date == this.date &&
           other.splitType == this.splitType &&
           other.signature == this.signature &&
           other.hlc == this.hlc &&
           other.isDeleted == this.isDeleted &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.syncError == this.syncError);
 }
 
 class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
   final Value<String> id;
   final Value<String> groupId;
   final Value<String> payerId;
+  final Value<String?> categoryId;
   final Value<String> description;
   final Value<double> amount;
   final Value<String> currencyCode;
+  final Value<DateTime?> date;
   final Value<String> splitType;
   final Value<String?> signature;
   final Value<String> hlc;
   final Value<bool> isDeleted;
   final Value<bool> isSynced;
+  final Value<String?> syncError;
   final Value<int> rowid;
   const ExpensesTableCompanion({
     this.id = const Value.absent(),
     this.groupId = const Value.absent(),
     this.payerId = const Value.absent(),
+    this.categoryId = const Value.absent(),
     this.description = const Value.absent(),
     this.amount = const Value.absent(),
     this.currencyCode = const Value.absent(),
+    this.date = const Value.absent(),
     this.splitType = const Value.absent(),
     this.signature = const Value.absent(),
     this.hlc = const Value.absent(),
     this.isDeleted = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.syncError = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ExpensesTableCompanion.insert({
     required String id,
     required String groupId,
     required String payerId,
+    this.categoryId = const Value.absent(),
     required String description,
     required double amount,
     required String currencyCode,
+    this.date = const Value.absent(),
     required String splitType,
     this.signature = const Value.absent(),
     required String hlc,
     this.isDeleted = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.syncError = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        groupId = Value(groupId),
@@ -1465,28 +1635,34 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     Expression<String>? id,
     Expression<String>? groupId,
     Expression<String>? payerId,
+    Expression<String>? categoryId,
     Expression<String>? description,
     Expression<double>? amount,
     Expression<String>? currencyCode,
+    Expression<DateTime>? date,
     Expression<String>? splitType,
     Expression<String>? signature,
     Expression<String>? hlc,
     Expression<bool>? isDeleted,
     Expression<bool>? isSynced,
+    Expression<String>? syncError,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (groupId != null) 'group_id': groupId,
       if (payerId != null) 'payer_id': payerId,
+      if (categoryId != null) 'category_id': categoryId,
       if (description != null) 'description': description,
       if (amount != null) 'amount': amount,
       if (currencyCode != null) 'currency_code': currencyCode,
+      if (date != null) 'date': date,
       if (splitType != null) 'split_type': splitType,
       if (signature != null) 'signature': signature,
       if (hlc != null) 'hlc': hlc,
       if (isDeleted != null) 'is_deleted': isDeleted,
       if (isSynced != null) 'is_synced': isSynced,
+      if (syncError != null) 'sync_error': syncError,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1495,28 +1671,34 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     Value<String>? id,
     Value<String>? groupId,
     Value<String>? payerId,
+    Value<String?>? categoryId,
     Value<String>? description,
     Value<double>? amount,
     Value<String>? currencyCode,
+    Value<DateTime?>? date,
     Value<String>? splitType,
     Value<String?>? signature,
     Value<String>? hlc,
     Value<bool>? isDeleted,
     Value<bool>? isSynced,
+    Value<String?>? syncError,
     Value<int>? rowid,
   }) {
     return ExpensesTableCompanion(
       id: id ?? this.id,
       groupId: groupId ?? this.groupId,
       payerId: payerId ?? this.payerId,
+      categoryId: categoryId ?? this.categoryId,
       description: description ?? this.description,
       amount: amount ?? this.amount,
       currencyCode: currencyCode ?? this.currencyCode,
+      date: date ?? this.date,
       splitType: splitType ?? this.splitType,
       signature: signature ?? this.signature,
       hlc: hlc ?? this.hlc,
       isDeleted: isDeleted ?? this.isDeleted,
       isSynced: isSynced ?? this.isSynced,
+      syncError: syncError ?? this.syncError,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1533,6 +1715,9 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     if (payerId.present) {
       map['payer_id'] = Variable<String>(payerId.value);
     }
+    if (categoryId.present) {
+      map['category_id'] = Variable<String>(categoryId.value);
+    }
     if (description.present) {
       map['description'] = Variable<String>(description.value);
     }
@@ -1541,6 +1726,9 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     }
     if (currencyCode.present) {
       map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (date.present) {
+      map['date'] = Variable<DateTime>(date.value);
     }
     if (splitType.present) {
       map['split_type'] = Variable<String>(splitType.value);
@@ -1557,6 +1745,9 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
     }
+    if (syncError.present) {
+      map['sync_error'] = Variable<String>(syncError.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1569,14 +1760,17 @@ class ExpensesTableCompanion extends UpdateCompanion<ExpensesTableData> {
           ..write('id: $id, ')
           ..write('groupId: $groupId, ')
           ..write('payerId: $payerId, ')
+          ..write('categoryId: $categoryId, ')
           ..write('description: $description, ')
           ..write('amount: $amount, ')
           ..write('currencyCode: $currencyCode, ')
+          ..write('date: $date, ')
           ..write('splitType: $splitType, ')
           ..write('signature: $signature, ')
           ..write('hlc: $hlc, ')
           ..write('isDeleted: $isDeleted, ')
           ..write('isSynced: $isSynced, ')
+          ..write('syncError: $syncError, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1640,6 +1834,45 @@ class $SplitsTableTable extends SplitsTable
     type: DriftSqlType.double,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _hlcMeta = const VerificationMeta('hlc');
+  @override
+  late final GeneratedColumn<String> hlc = GeneratedColumn<String>(
+    'hlc',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1647,6 +1880,9 @@ class $SplitsTableTable extends SplitsTable
     userId,
     calculatedAmount,
     rawValue,
+    hlc,
+    isSynced,
+    isDeleted,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1698,6 +1934,24 @@ class $SplitsTableTable extends SplitsTable
         rawValue.isAcceptableOrUnknown(data['raw_value']!, _rawValueMeta),
       );
     }
+    if (data.containsKey('hlc')) {
+      context.handle(
+        _hlcMeta,
+        hlc.isAcceptableOrUnknown(data['hlc']!, _hlcMeta),
+      );
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
     return context;
   }
 
@@ -1727,6 +1981,18 @@ class $SplitsTableTable extends SplitsTable
         DriftSqlType.double,
         data['${effectivePrefix}raw_value'],
       ),
+      hlc: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hlc'],
+      ),
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
     );
   }
 
@@ -1742,12 +2008,18 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
   final String userId;
   final double calculatedAmount;
   final double? rawValue;
+  final String? hlc;
+  final bool isSynced;
+  final bool isDeleted;
   const SplitsTableData({
     required this.id,
     required this.expenseId,
     required this.userId,
     required this.calculatedAmount,
     this.rawValue,
+    this.hlc,
+    required this.isSynced,
+    required this.isDeleted,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1759,6 +2031,11 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
     if (!nullToAbsent || rawValue != null) {
       map['raw_value'] = Variable<double>(rawValue);
     }
+    if (!nullToAbsent || hlc != null) {
+      map['hlc'] = Variable<String>(hlc);
+    }
+    map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
     return map;
   }
 
@@ -1771,6 +2048,9 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
       rawValue: rawValue == null && nullToAbsent
           ? const Value.absent()
           : Value(rawValue),
+      hlc: hlc == null && nullToAbsent ? const Value.absent() : Value(hlc),
+      isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
     );
   }
 
@@ -1785,6 +2065,9 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
       userId: serializer.fromJson<String>(json['userId']),
       calculatedAmount: serializer.fromJson<double>(json['calculatedAmount']),
       rawValue: serializer.fromJson<double?>(json['rawValue']),
+      hlc: serializer.fromJson<String?>(json['hlc']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
     );
   }
   @override
@@ -1796,6 +2079,9 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
       'userId': serializer.toJson<String>(userId),
       'calculatedAmount': serializer.toJson<double>(calculatedAmount),
       'rawValue': serializer.toJson<double?>(rawValue),
+      'hlc': serializer.toJson<String?>(hlc),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
     };
   }
 
@@ -1805,12 +2091,18 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
     String? userId,
     double? calculatedAmount,
     Value<double?> rawValue = const Value.absent(),
+    Value<String?> hlc = const Value.absent(),
+    bool? isSynced,
+    bool? isDeleted,
   }) => SplitsTableData(
     id: id ?? this.id,
     expenseId: expenseId ?? this.expenseId,
     userId: userId ?? this.userId,
     calculatedAmount: calculatedAmount ?? this.calculatedAmount,
     rawValue: rawValue.present ? rawValue.value : this.rawValue,
+    hlc: hlc.present ? hlc.value : this.hlc,
+    isSynced: isSynced ?? this.isSynced,
+    isDeleted: isDeleted ?? this.isDeleted,
   );
   SplitsTableData copyWithCompanion(SplitsTableCompanion data) {
     return SplitsTableData(
@@ -1821,6 +2113,9 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
           ? data.calculatedAmount.value
           : this.calculatedAmount,
       rawValue: data.rawValue.present ? data.rawValue.value : this.rawValue,
+      hlc: data.hlc.present ? data.hlc.value : this.hlc,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
     );
   }
 
@@ -1831,14 +2126,25 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
           ..write('expenseId: $expenseId, ')
           ..write('userId: $userId, ')
           ..write('calculatedAmount: $calculatedAmount, ')
-          ..write('rawValue: $rawValue')
+          ..write('rawValue: $rawValue, ')
+          ..write('hlc: $hlc, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, expenseId, userId, calculatedAmount, rawValue);
+  int get hashCode => Object.hash(
+    id,
+    expenseId,
+    userId,
+    calculatedAmount,
+    rawValue,
+    hlc,
+    isSynced,
+    isDeleted,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1847,7 +2153,10 @@ class SplitsTableData extends DataClass implements Insertable<SplitsTableData> {
           other.expenseId == this.expenseId &&
           other.userId == this.userId &&
           other.calculatedAmount == this.calculatedAmount &&
-          other.rawValue == this.rawValue);
+          other.rawValue == this.rawValue &&
+          other.hlc == this.hlc &&
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted);
 }
 
 class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
@@ -1856,6 +2165,9 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
   final Value<String> userId;
   final Value<double> calculatedAmount;
   final Value<double?> rawValue;
+  final Value<String?> hlc;
+  final Value<bool> isSynced;
+  final Value<bool> isDeleted;
   final Value<int> rowid;
   const SplitsTableCompanion({
     this.id = const Value.absent(),
@@ -1863,6 +2175,9 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
     this.userId = const Value.absent(),
     this.calculatedAmount = const Value.absent(),
     this.rawValue = const Value.absent(),
+    this.hlc = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   SplitsTableCompanion.insert({
@@ -1871,6 +2186,9 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
     required String userId,
     required double calculatedAmount,
     this.rawValue = const Value.absent(),
+    this.hlc = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        expenseId = Value(expenseId),
@@ -1882,6 +2200,9 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
     Expression<String>? userId,
     Expression<double>? calculatedAmount,
     Expression<double>? rawValue,
+    Expression<String>? hlc,
+    Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1890,6 +2211,9 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
       if (userId != null) 'user_id': userId,
       if (calculatedAmount != null) 'calculated_amount': calculatedAmount,
       if (rawValue != null) 'raw_value': rawValue,
+      if (hlc != null) 'hlc': hlc,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1900,6 +2224,9 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
     Value<String>? userId,
     Value<double>? calculatedAmount,
     Value<double?>? rawValue,
+    Value<String?>? hlc,
+    Value<bool>? isSynced,
+    Value<bool>? isDeleted,
     Value<int>? rowid,
   }) {
     return SplitsTableCompanion(
@@ -1908,6 +2235,9 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
       userId: userId ?? this.userId,
       calculatedAmount: calculatedAmount ?? this.calculatedAmount,
       rawValue: rawValue ?? this.rawValue,
+      hlc: hlc ?? this.hlc,
+      isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1930,6 +2260,15 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
     if (rawValue.present) {
       map['raw_value'] = Variable<double>(rawValue.value);
     }
+    if (hlc.present) {
+      map['hlc'] = Variable<String>(hlc.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1944,6 +2283,9 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
           ..write('userId: $userId, ')
           ..write('calculatedAmount: $calculatedAmount, ')
           ..write('rawValue: $rawValue, ')
+          ..write('hlc: $hlc, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2183,6 +2525,7 @@ typedef $$GroupsTableTableCreateCompanionBuilder =
       Value<String> memberIds,
       Value<bool> isDeleted,
       Value<bool> isSynced,
+      Value<String?> syncError,
       Value<int> rowid,
     });
 typedef $$GroupsTableTableUpdateCompanionBuilder =
@@ -2196,6 +2539,7 @@ typedef $$GroupsTableTableUpdateCompanionBuilder =
       Value<String> memberIds,
       Value<bool> isDeleted,
       Value<bool> isSynced,
+      Value<String?> syncError,
       Value<int> rowid,
     });
 
@@ -2250,6 +2594,11 @@ class $$GroupsTableTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
     column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncError => $composableBuilder(
+    column: $table.syncError,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2307,6 +2656,11 @@ class $$GroupsTableTableOrderingComposer
     column: $table.isSynced,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncError => $composableBuilder(
+    column: $table.syncError,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$GroupsTableTableAnnotationComposer
@@ -2346,6 +2700,9 @@ class $$GroupsTableTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get syncError =>
+      $composableBuilder(column: $table.syncError, builder: (column) => column);
 }
 
 class $$GroupsTableTableTableManager
@@ -2388,6 +2745,7 @@ class $$GroupsTableTableTableManager
                 Value<String> memberIds = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
+                Value<String?> syncError = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GroupsTableCompanion(
                 id: id,
@@ -2399,6 +2757,7 @@ class $$GroupsTableTableTableManager
                 memberIds: memberIds,
                 isDeleted: isDeleted,
                 isSynced: isSynced,
+                syncError: syncError,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2412,6 +2771,7 @@ class $$GroupsTableTableTableManager
                 Value<String> memberIds = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
+                Value<String?> syncError = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => GroupsTableCompanion.insert(
                 id: id,
@@ -2423,6 +2783,7 @@ class $$GroupsTableTableTableManager
                 memberIds: memberIds,
                 isDeleted: isDeleted,
                 isSynced: isSynced,
+                syncError: syncError,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -2455,14 +2816,17 @@ typedef $$ExpensesTableTableCreateCompanionBuilder =
       required String id,
       required String groupId,
       required String payerId,
+      Value<String?> categoryId,
       required String description,
       required double amount,
       required String currencyCode,
+      Value<DateTime?> date,
       required String splitType,
       Value<String?> signature,
       required String hlc,
       Value<bool> isDeleted,
       Value<bool> isSynced,
+      Value<String?> syncError,
       Value<int> rowid,
     });
 typedef $$ExpensesTableTableUpdateCompanionBuilder =
@@ -2470,14 +2834,17 @@ typedef $$ExpensesTableTableUpdateCompanionBuilder =
       Value<String> id,
       Value<String> groupId,
       Value<String> payerId,
+      Value<String?> categoryId,
       Value<String> description,
       Value<double> amount,
       Value<String> currencyCode,
+      Value<DateTime?> date,
       Value<String> splitType,
       Value<String?> signature,
       Value<String> hlc,
       Value<bool> isDeleted,
       Value<bool> isSynced,
+      Value<String?> syncError,
       Value<int> rowid,
     });
 
@@ -2505,6 +2872,11 @@ class $$ExpensesTableTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnFilters(column),
+  );
+
   ColumnFilters<String> get description => $composableBuilder(
     column: $table.description,
     builder: (column) => ColumnFilters(column),
@@ -2517,6 +2889,11 @@ class $$ExpensesTableTableFilterComposer
 
   ColumnFilters<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2542,6 +2919,11 @@ class $$ExpensesTableTableFilterComposer
 
   ColumnFilters<bool> get isSynced => $composableBuilder(
     column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncError => $composableBuilder(
+    column: $table.syncError,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2570,6 +2952,11 @@ class $$ExpensesTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get description => $composableBuilder(
     column: $table.description,
     builder: (column) => ColumnOrderings(column),
@@ -2582,6 +2969,11 @@ class $$ExpensesTableTableOrderingComposer
 
   ColumnOrderings<String> get currencyCode => $composableBuilder(
     column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get date => $composableBuilder(
+    column: $table.date,
     builder: (column) => ColumnOrderings(column),
   );
 
@@ -2609,6 +3001,11 @@ class $$ExpensesTableTableOrderingComposer
     column: $table.isSynced,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get syncError => $composableBuilder(
+    column: $table.syncError,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ExpensesTableTableAnnotationComposer
@@ -2629,6 +3026,11 @@ class $$ExpensesTableTableAnnotationComposer
   GeneratedColumn<String> get payerId =>
       $composableBuilder(column: $table.payerId, builder: (column) => column);
 
+  GeneratedColumn<String> get categoryId => $composableBuilder(
+    column: $table.categoryId,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get description => $composableBuilder(
     column: $table.description,
     builder: (column) => column,
@@ -2641,6 +3043,9 @@ class $$ExpensesTableTableAnnotationComposer
     column: $table.currencyCode,
     builder: (column) => column,
   );
+
+  GeneratedColumn<DateTime> get date =>
+      $composableBuilder(column: $table.date, builder: (column) => column);
 
   GeneratedColumn<String> get splitType =>
       $composableBuilder(column: $table.splitType, builder: (column) => column);
@@ -2656,6 +3061,9 @@ class $$ExpensesTableTableAnnotationComposer
 
   GeneratedColumn<bool> get isSynced =>
       $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<String> get syncError =>
+      $composableBuilder(column: $table.syncError, builder: (column) => column);
 }
 
 class $$ExpensesTableTableTableManager
@@ -2696,27 +3104,33 @@ class $$ExpensesTableTableTableManager
                 Value<String> id = const Value.absent(),
                 Value<String> groupId = const Value.absent(),
                 Value<String> payerId = const Value.absent(),
+                Value<String?> categoryId = const Value.absent(),
                 Value<String> description = const Value.absent(),
                 Value<double> amount = const Value.absent(),
                 Value<String> currencyCode = const Value.absent(),
+                Value<DateTime?> date = const Value.absent(),
                 Value<String> splitType = const Value.absent(),
                 Value<String?> signature = const Value.absent(),
                 Value<String> hlc = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
+                Value<String?> syncError = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesTableCompanion(
                 id: id,
                 groupId: groupId,
                 payerId: payerId,
+                categoryId: categoryId,
                 description: description,
                 amount: amount,
                 currencyCode: currencyCode,
+                date: date,
                 splitType: splitType,
                 signature: signature,
                 hlc: hlc,
                 isDeleted: isDeleted,
                 isSynced: isSynced,
+                syncError: syncError,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2724,27 +3138,33 @@ class $$ExpensesTableTableTableManager
                 required String id,
                 required String groupId,
                 required String payerId,
+                Value<String?> categoryId = const Value.absent(),
                 required String description,
                 required double amount,
                 required String currencyCode,
+                Value<DateTime?> date = const Value.absent(),
                 required String splitType,
                 Value<String?> signature = const Value.absent(),
                 required String hlc,
                 Value<bool> isDeleted = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
+                Value<String?> syncError = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ExpensesTableCompanion.insert(
                 id: id,
                 groupId: groupId,
                 payerId: payerId,
+                categoryId: categoryId,
                 description: description,
                 amount: amount,
                 currencyCode: currencyCode,
+                date: date,
                 splitType: splitType,
                 signature: signature,
                 hlc: hlc,
                 isDeleted: isDeleted,
                 isSynced: isSynced,
+                syncError: syncError,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -2779,6 +3199,9 @@ typedef $$SplitsTableTableCreateCompanionBuilder =
       required String userId,
       required double calculatedAmount,
       Value<double?> rawValue,
+      Value<String?> hlc,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
       Value<int> rowid,
     });
 typedef $$SplitsTableTableUpdateCompanionBuilder =
@@ -2788,6 +3211,9 @@ typedef $$SplitsTableTableUpdateCompanionBuilder =
       Value<String> userId,
       Value<double> calculatedAmount,
       Value<double?> rawValue,
+      Value<String?> hlc,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
       Value<int> rowid,
     });
 
@@ -2822,6 +3248,21 @@ class $$SplitsTableTableFilterComposer
 
   ColumnFilters<double> get rawValue => $composableBuilder(
     column: $table.rawValue,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hlc => $composableBuilder(
+    column: $table.hlc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2859,6 +3300,21 @@ class $$SplitsTableTableOrderingComposer
     column: $table.rawValue,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get hlc => $composableBuilder(
+    column: $table.hlc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$SplitsTableTableAnnotationComposer
@@ -2886,6 +3342,15 @@ class $$SplitsTableTableAnnotationComposer
 
   GeneratedColumn<double> get rawValue =>
       $composableBuilder(column: $table.rawValue, builder: (column) => column);
+
+  GeneratedColumn<String> get hlc =>
+      $composableBuilder(column: $table.hlc, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
 }
 
 class $$SplitsTableTableTableManager
@@ -2924,6 +3389,9 @@ class $$SplitsTableTableTableManager
                 Value<String> userId = const Value.absent(),
                 Value<double> calculatedAmount = const Value.absent(),
                 Value<double?> rawValue = const Value.absent(),
+                Value<String?> hlc = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SplitsTableCompanion(
                 id: id,
@@ -2931,6 +3399,9 @@ class $$SplitsTableTableTableManager
                 userId: userId,
                 calculatedAmount: calculatedAmount,
                 rawValue: rawValue,
+                hlc: hlc,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2940,6 +3411,9 @@ class $$SplitsTableTableTableManager
                 required String userId,
                 required double calculatedAmount,
                 Value<double?> rawValue = const Value.absent(),
+                Value<String?> hlc = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => SplitsTableCompanion.insert(
                 id: id,
@@ -2947,6 +3421,9 @@ class $$SplitsTableTableTableManager
                 userId: userId,
                 calculatedAmount: calculatedAmount,
                 rawValue: rawValue,
+                hlc: hlc,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

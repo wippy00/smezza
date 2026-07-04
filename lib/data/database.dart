@@ -25,7 +25,25 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.inMemory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3; // era 2
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(splitsTable, splitsTable.hlc);
+        await m.addColumn(splitsTable, splitsTable.isSynced);
+        await m.addColumn(splitsTable, splitsTable.isDeleted);
+        await m.addColumn(expensesTable, expensesTable.categoryId);
+        await m.addColumn(expensesTable, expensesTable.date);
+      }
+      if (from < 3) {
+        await m.addColumn(expensesTable, expensesTable.syncError);
+        await m.addColumn(groupsTable, groupsTable.syncError);
+      }
+    },
+  );
 }
 
 QueryExecutor _openConnection() {

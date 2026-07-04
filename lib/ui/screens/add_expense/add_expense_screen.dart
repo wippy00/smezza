@@ -63,7 +63,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     );
 
     final expenseId = const Uuid().v4();
-    final hlc = Hlc.now(identity.uuid);
+    final hlc = identity.nextHlc();
 
     // --- CALCOLO DELLA FIRMA DELLA SPESA ---
     // Payload canonico: "id|groupId|payerId|amount|currency|hlc"
@@ -79,6 +79,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       description: desc,
       amount: amount,
       currencyCode: widget.group.currencyCode,
+      date: Value(
+        DateTime.now(),
+      ), // AGGIUNTO: TODO collegare un date picker in UI
       splitType: 'EQUAL',
       hlc: hlc.toString(),
       signature: Value(
@@ -92,6 +95,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         expenseId: expenseId,
         userId: entry.key,
         calculatedAmount: entry.value,
+        hlc: Value(hlc.toString()), // AGGIUNTO: stesso HLC della spesa
       );
     }).toList();
 
@@ -113,9 +117,33 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Errore: $err')),
         data: (users) {
+          // 1. Rimuoviamo eventuali duplicati per ID per evitare crash del Dropdown
+          final uniqueUsers = <dynamic>[];
+          final ids = <String>{};
+          for (final u in users) {
+            if (ids.add(u.id)) {
+              uniqueUsers.add(u);
+            }
+          }
+
           // Inizializza i partecipanti se la lista è vuota al primo caricamento
-          if (_selectedParticipants.isEmpty && users.isNotEmpty) {
-            _selectedParticipants.addAll(users.map((u) => u.id));
+          if (_selectedParticipants.isEmpty && uniqueUsers.isNotEmpty) {
+            _selectedParticipants.addAll(
+              uniqueUsers.map((u) => u.id as String),
+            );
+          }
+
+          // 2. Determiniamo un ID pagatore valido che appartenga sicuramente alla lista caricata
+          final hasSelectedPayer = uniqueUsers.any(
+            (u) => u.id == _selectedPayerId,
+          );
+          final activePayerId = hasSelectedPayer
+              ? _selectedPayerId
+              : (uniqueUsers.isNotEmpty ? uniqueUsers.first.id : null);
+
+          // Allineiamo lo stato interno se è cambiato
+          if (activePayerId != _selectedPayerId) {
+            _selectedPayerId = activePayerId;
           }
 
           return ListView(
@@ -152,13 +180,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
               // Pagatore
               DropdownButtonFormField<String>(
-                initialValue: _selectedPayerId,
+                // Utilizziamo "value" invece di "initialValue" per consentire aggiornamenti dinamici
+                initialValue: activePayerId,
                 decoration: const InputDecoration(
                   labelText: 'Chi ha pagato?',
                   border: OutlineInputBorder(),
                 ),
-                items: users.map((u) {
-                  return DropdownMenuItem(
+                items: uniqueUsers.map((u) {
+                  return DropdownMenuItem<String>(
                     value: u.id,
                     child: Text(u.isMe ? 'Tu' : u.name),
                   );
@@ -181,7 +210,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               const SizedBox(height: 8),
               Card(
                 child: Column(
-                  children: users.map((u) {
+                  children: uniqueUsers.map((u) {
                     final isSelected = _selectedParticipants.contains(u.id);
                     return CheckboxListTile(
                       title: Text(u.isMe ? 'Tu' : u.name),

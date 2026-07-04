@@ -127,7 +127,7 @@ class FriendsScreen extends ConsumerWidget {
 
                 final db = GetIt.I<AppDatabase>();
                 final identity = GetIt.I<IdentityService>();
-                final hlc = Hlc.now(identity.uuid);
+                final hlc = identity.nextHlc();
 
                 // Salviamo l'amico nel nostro database SQLite locale
                 await db.usersDao.upsertUser(

@@ -34,7 +34,6 @@ class MergeEngine {
     )..where((t) => t.id.equals(id))).getSingleOrNull();
 
     if (local == null || remoteHlc > Hlc.fromString(local.hlc)) {
-      // Usiamo UsersTableData.fromJson al posto del Companion!
       final record = UsersTableData.fromJson(remote);
       await _db.into(_db.usersTable).insertOnConflictUpdate(record);
     }
@@ -68,13 +67,31 @@ class MergeEngine {
     }
   }
 
+  // --- CORRETTO: ora confronta gli HLC come le altre tabelle, invece di
+  // scrivere solo quando lo split non esiste ancora localmente. Prima
+  // qualunque modifica remota a uno split già visto veniva ignorata per sempre.
   Future<void> _mergeSplit(Map<String, dynamic> remote) async {
     final id = remote['id'] as String;
+    final remoteHlcStr = remote['hlc'] as String?;
+    final remoteHlc = remoteHlcStr != null
+        ? Hlc.fromString(remoteHlcStr)
+        : null;
+
     final local = await (_db.select(
       _db.splitsTable,
     )..where((t) => t.id.equals(id))).getSingleOrNull();
 
-    if (local == null) {
+    final localHlcStr = local?.hlc;
+    final localHlc = localHlcStr != null ? Hlc.fromString(localHlcStr) : null;
+
+    // Scrivi se: non esiste ancora localmente, oppure non abbiamo un HLC
+    // locale valido con cui confrontare, oppure il remoto è più recente.
+    final shouldWrite =
+        local == null ||
+        localHlc == null ||
+        (remoteHlc != null && remoteHlc > localHlc);
+
+    if (shouldWrite) {
       final record = SplitsTableData.fromJson(remote);
       await _db.into(_db.splitsTable).insertOnConflictUpdate(record);
     }

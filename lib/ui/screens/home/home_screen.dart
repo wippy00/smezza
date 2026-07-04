@@ -67,7 +67,7 @@ class HomeScreen extends ConsumerWidget {
                 final identity = GetIt.I<IdentityService>();
 
                 final gId = const Uuid().v4();
-                final hlc = Hlc.now(identity.uuid);
+                final hlc = identity.nextHlc();
 
                 // --- CALCOLO DELLA FIRMA DEL GRUPPO ---
                 // Payload canonico: "id|nome|valuta|proprietario|hlc"
@@ -120,7 +120,7 @@ class HomeScreen extends ConsumerWidget {
               onPressed: () async {
                 final db = GetIt.I<AppDatabase>();
                 final identity = GetIt.I<IdentityService>();
-                final hlc = Hlc.now(identity.uuid);
+                final hlc = identity.nextHlc();
 
                 // Eseguiamo il soft-delete locale
                 await db.groupsDao.softDeleteGroup(group.id, hlc.toString());
