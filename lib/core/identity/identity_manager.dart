@@ -1,13 +1,15 @@
 import 'dart:convert';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../hlc/hlc_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smezza/core/hlc/hlc_manager.dart';
 
 class IdentityService {
   final FlutterSecureStorage _secureStorage;
   final _algorithm = Ed25519();
 
   static const _storageSlot = 'user_private_key';
+  static const _kBackupDone = 'backup_confirmed';
 
   SimpleKeyPair? _cachedKeyPair;
   String? _cachedPublicKeyBase64;
@@ -22,22 +24,62 @@ class IdentityService {
     final storedPrivateKey = await _secureStorage.read(key: _storageSlot);
 
     if (storedPrivateKey != null) {
-      // Usiamo base64Url.normalize nativo invece del nostro helper helper
-      final normalized = base64Url.normalize(storedPrivateKey); //
+      final normalized = base64Url.normalize(storedPrivateKey);
       final privateKeyBytes = base64Url.decode(normalized);
-      _cachedKeyPair = await _algorithm.newKeyPairFromSeed(privateKeyBytes);
-    } else {
-      _cachedKeyPair = await _algorithm.newKeyPair();
-      final privateKeyBytes = await _cachedKeyPair!.extractPrivateKeyBytes();
 
-      await _secureStorage.write(
-        key: _storageSlot,
-        value: base64Url.encode(privateKeyBytes).replaceAll('=', ''),
-      );
+      if (privateKeyBytes.length != 32) {
+        // storage corrotto o residuo: non riusare mai, rigenera pulito
+        await _secureStorage.delete(key: _storageSlot);
+        await _generateFreshKeyPair();
+        return;
+      }
+
+      _cachedKeyPair = await _algorithm.newKeyPairFromSeed(privateKeyBytes);
+      _rawSeedCache = normalized;
+    } else {
+      await _generateFreshKeyPair();
+      return; // _generateFreshKeyPair già setta pubkey, evitiamo doppio lavoro
     }
 
     final pubKey = await _cachedKeyPair!.extractPublicKey();
     _cachedPublicKeyBase64 = base64Url.encode(pubKey.bytes).replaceAll('=', '');
+  }
+
+  // NUOVO: unico punto che genera chiave nuova, sempre con secure random
+  // (newKeyPair() della lib cryptography usa già CSPRNG internamente, ok così)
+  Future<void> _generateFreshKeyPair() async {
+    _cachedKeyPair = await _algorithm.newKeyPair();
+    final privateKeyBytes = await _cachedKeyPair!.extractPrivateKeyBytes();
+    final seed = base64Url.encode(privateKeyBytes).replaceAll('=', '');
+
+    await _secureStorage.write(key: _storageSlot, value: seed);
+    _rawSeedCache = seed;
+
+    final pubKey = await _cachedKeyPair!.extractPublicKey();
+    _cachedPublicKeyBase64 = base64Url.encode(pubKey.bytes).replaceAll('=', '');
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kBackupDone, false); // chiave nuova = backup non fatto
+  }
+
+  // NUOVO: da chiamare SEMPRE al register, ignora qualunque chiave residua
+  // in storage (caso device condiviso / utente precedente non ha fatto logout pulito)
+  Future<void> forceNewIdentity() async {
+    await _secureStorage.delete(key: _storageSlot);
+    _cachedKeyPair = null;
+    _cachedPublicKeyBase64 = null;
+    _rawSeedCache = null;
+    await _generateFreshKeyPair();
+  }
+
+  // NUOVO: wipe totale, da chiamare al logout
+  Future<void> wipeIdentity() async {
+    await _secureStorage.delete(key: _storageSlot);
+    _cachedKeyPair = null;
+    _cachedPublicKeyBase64 = null;
+    _rawSeedCache = null;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kBackupDone);
   }
 
   String get uuid {
@@ -90,5 +132,53 @@ class IdentityService {
     } catch (_) {
       return false;
     }
+  }
+
+  String exportKey() {
+    if (_rawSeedCache == null) throw Exception("Not initialized");
+    return _rawSeedCache!;
+  }
+
+  Future<String> exportKeyAsync() async {
+    final stored = await _secureStorage.read(key: _storageSlot);
+    if (stored == null) throw Exception("Chiave non trovata in storage");
+    return stored;
+  }
+
+  // serve cache del seed originale, aggiungi campo:
+  String? _rawSeedCache;
+
+  // in init(), quando leggi storedPrivateKey, salva:
+  // _rawSeedCache = normalized;
+  // e nel branch else, dopo write, salva:
+  // _rawSeedCache = base64Url.encode(privateKeyBytes).replaceAll('=', '');
+
+  Future<void> importKey(String pastedSeed) async {
+    final clean = _normalize(pastedSeed);
+    final bytes = base64Url.decode(clean);
+    if (bytes.length != 32)
+      throw Exception('Chiave non valida (lunghezza errata)');
+    await _secureStorage.write(key: _storageSlot, value: clean);
+    await init(); // ricarica tutto da storage
+  }
+
+  static String _normalize(String s) {
+    final trimmed = s.trim().replaceAll(RegExp(r'\s+'), '');
+    return base64Url.normalize(trimmed.replaceAll('=', ''));
+  }
+
+  Future<bool> isBackupConfirmed() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kBackupDone) ?? false;
+  }
+
+  Future<void> confirmBackup() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kBackupDone, true);
+  }
+
+  Future<void> resetBackupFlag() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kBackupDone, false);
   }
 }

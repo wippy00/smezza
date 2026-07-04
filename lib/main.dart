@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 import 'package:drift/drift.dart';
+import 'package:smezza/ui/providers/backup_provider.dart';
+import 'package:smezza/ui/screens/backup/backup_screen.dart';
 
 import 'core/identity/identity_manager.dart';
 import 'core/hlc/hlc_manager.dart';
@@ -84,12 +86,26 @@ class SmezzaApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isLoggedIn = ref.watch(authProvider);
 
+    Widget home;
+    if (!isLoggedIn) {
+      home = const AuthScreen();
+    } else {
+      final needsBackup = ref.watch(needsBackupProvider);
+      home = needsBackup.when(
+        data: (needs) =>
+            needs ? const BackupScreen() : const MainContainerScreen(),
+        loading: () =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
+        error: (_, __) => const MainContainerScreen(),
+      );
+    }
+
     return MaterialApp(
       title: 'Smezza',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: isLoggedIn ? const MainContainerScreen() : const AuthScreen(),
+      home: home,
     );
   }
 }

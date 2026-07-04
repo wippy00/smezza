@@ -81,6 +81,21 @@ class PocketbaseRepository implements SyncRepository {
     }
   }
 
+  Future<bool> verifyIdentityMatchesServer(
+    String email,
+    String password,
+  ) async {
+    try {
+      final authResult = await _pb
+          .collection('users')
+          .authWithPassword(email, password);
+      final remotePubKey = authResult.record.getStringValue('public_key');
+      return remotePubKey == _identity.uuid;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> register(String email, String password, String name) async {
     _statusController.add(SyncStatus.syncing);
     try {

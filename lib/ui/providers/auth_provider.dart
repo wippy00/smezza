@@ -1,10 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get_it/get_it.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/sync/sync_repository.dart';
 import '/data/remote/pocketbase_repository.dart';
 import '/core/identity/identity_manager.dart';
 import '/sync/sync_service.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // 1. Estendiamo Notifier<bool> invece di StateNotifier<bool>
 class AuthNotifier extends Notifier<bool> {
@@ -24,37 +25,45 @@ class AuthNotifier extends Notifier<bool> {
     String? recoveryKey,
   }) async {
     final repo = GetIt.I<SyncRepository>() as PocketbaseRepository;
+    final identity = GetIt.I<IdentityService>();
 
-    // Se l'utente ha inserito una chiave di ripristino, la salviamo prima di loggarci
     if (recoveryKey != null && recoveryKey.trim().isNotEmpty) {
-      const storage = FlutterSecureStorage();
-      await storage.write(key: 'user_private_key', value: recoveryKey.trim());
-
-      // Re-inizializziamo l'IdentityService con la nuova chiave privata appena caricata
-      final identity = GetIt.I<IdentityService>();
-      await identity.init();
+      await identity.importKey(recoveryKey.trim());
     }
 
-    // Effettuiamo il login su PocketBase
+    // Verifica ANCHE se non c'è recovery: la chiave locale deve combaciare col server
+    final match = await repo.verifyIdentityMatchesServer(email, password);
+    if (!match) {
+      throw Exception(
+        'La chiave locale non corrisponde a questo account. Login bloccato.',
+      );
+    }
+
     await repo.login(email, password);
 
-    // Se il login ha successo, avviamo subito un PULL completo dal server
-    // per scaricare sul nuovo dispositivo tutti i gruppi e le spese storiche!
     final syncService = GetIt.I<SyncService>();
     await syncService.pullRemoteChanges();
 
-    state = true; // Imposta lo stato a loggato
+    state = true;
   }
 
   Future<void> register(String email, String password, String name) async {
     final repo = GetIt.I<SyncRepository>() as PocketbaseRepository;
+    final identity = GetIt.I<IdentityService>();
+
+    await identity
+        .forceNewIdentity(); // device condiviso: mai ereditare chiave vecchia
+
     await repo.register(email, password, name);
+    await identity.resetBackupFlag();
+
     state = true;
   }
 
-  void logout() {
+  Future<void> logout() async {
     final repo = GetIt.I<SyncRepository>() as PocketbaseRepository;
-    repo.logout();
+    await repo.logout();
+    await GetIt.I<IdentityService>().wipeIdentity();
     state = false;
   }
 }
