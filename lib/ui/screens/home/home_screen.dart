@@ -1,3 +1,4 @@
+// lib/ui/screens/home/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
@@ -7,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../providers/groups_provider.dart';
 import '../../../data/database.dart';
 import '../../../core/identity/identity_manager.dart';
+import '../../providers/users_provider.dart';
 
 import '/sync/sync_service.dart';
 import '../group_detail/group_detail_screen.dart';
@@ -16,7 +18,6 @@ import 'package:drift/drift.dart' show Value;
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  // Funzione per mostrare il Dialog M3 di creazione gruppo
   void _showAddGroupDialog(BuildContext context) {
     final nameController = TextEditingController();
     String selectedCurrency = 'EUR';
@@ -69,13 +70,10 @@ class HomeScreen extends ConsumerWidget {
                 final gId = const Uuid().v4();
                 final hlc = identity.nextHlc();
 
-                // --- CALCOLO DELLA FIRMA DEL GRUPPO ---
-                // Payload canonico: "id|nome|valuta|proprietario|hlc"
                 final payload =
                     '$gId|${nameController.text.trim()}|$selectedCurrency|${identity.uuid}|${hlc.toString()}';
 
                 final signature = await identity.sign(payload);
-                // --------------------------------------
 
                 await db.groupsDao.upsertGroup(
                   GroupsTableCompanion.insert(
@@ -85,48 +83,13 @@ class HomeScreen extends ConsumerWidget {
                     ownerId: identity.uuid,
                     memberIds: Value(identity.uuid),
                     hlc: hlc.toString(),
-                    signature: Value(
-                      signature,
-                    ), // Salviamo la firma crittografica!
+                    signature: Value(signature),
                   ),
                 );
 
                 if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Crea'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _confirmDeleteGroup(BuildContext context, GroupsTableData group) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Elimina Gruppo'),
-          content: Text(
-            'Sei sicuro di voler eliminare il gruppo "${group.name}"? Tutti i dati verranno rimossi.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Annulla'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: Colors.red),
-              onPressed: () async {
-                final db = GetIt.I<AppDatabase>();
-                final identity = GetIt.I<IdentityService>();
-                final hlc = identity.nextHlc();
-
-                // Eseguiamo il soft-delete locale
-                await db.groupsDao.softDeleteGroup(group.id, hlc.toString());
-                if (context.mounted) Navigator.pop(context);
-              },
-              child: const Text('Elimina'),
             ),
           ],
         );
@@ -151,7 +114,6 @@ class HomeScreen extends ConsumerWidget {
       ),
       items: const [
         PopupMenuItem(value: 'settings', child: Text('Impostazioni')),
-        PopupMenuItem(value: 'delete', child: Text('Elimina')),
       ],
     ).then((value) {
       if (!context.mounted || value == null) return;
@@ -160,16 +122,12 @@ class HomeScreen extends ConsumerWidget {
           context,
           MaterialPageRoute(builder: (_) => GroupSettingsScreen(group: group)),
         );
-      } else if (value == 'delete') {
-        _confirmDeleteGroup(context, group);
       }
     });
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // ref.watch si mette in ascolto del provider.
-    // Se i dati sul DB cambiano, l'intero metodo build viene ricalcolato.
     final groupsAsync = ref.watch(groupsProvider);
 
     return Scaffold(
@@ -190,12 +148,9 @@ class HomeScreen extends ConsumerWidget {
                   );
 
                   final syncService = GetIt.I<SyncService>();
-
-                  // Recuperiamo l'esito della sincronizzazione (true/false)
                   final success = await syncService.sync();
 
                   if (context.mounted) {
-                    // Rimuove la notifica precedente "Sincronizzazione in corso"
                     ScaffoldMessenger.of(context).clearSnackBars();
 
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -205,7 +160,6 @@ class HomeScreen extends ConsumerWidget {
                               ? 'Sincronizzazione completata!'
                               : 'Errore di sincronizzazione! Controlla la connessione o le collezioni.',
                         ),
-                        // In caso di errore coloriamo la notifica di rosso (Material 3 Error Color)
                         backgroundColor: success
                             ? null
                             : Theme.of(context).colorScheme.error,
@@ -251,11 +205,8 @@ class HomeScreen extends ConsumerWidget {
                       position: details.globalPosition,
                     ),
                     child: ListTile(
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (!group.isSynced)
-                            Tooltip(
+                      trailing: !group.isSynced
+                          ? Tooltip(
                               message:
                                   group.syncError ??
                                   'In attesa di sincronizzazione',
@@ -268,17 +219,8 @@ class HomeScreen extends ConsumerWidget {
                                     : Colors.grey,
                                 size: 20,
                               ),
-                            ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.red,
-                            ),
-                            onPressed: () =>
-                                _confirmDeleteGroup(context, group),
-                          ),
-                        ],
-                      ),
+                            )
+                          : null,
                       leading: const CircleAvatar(
                         child: Icon(Icons.group_outlined),
                       ),
@@ -295,10 +237,175 @@ class HomeScreen extends ConsumerWidget {
           },
         ),
       ),
-      // Pulsante di azione fluttuante M3 (un quadrato molto arrotondato)
       floatingActionButton: FloatingActionButton.large(
         onPressed: () => _showAddGroupDialog(context),
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+// ================= SCHERMATA AMICI REALE =================
+class FriendsScreen extends ConsumerWidget {
+  const FriendsScreen({super.key});
+
+  void _showAddFriendDialog(BuildContext context) {
+    final nameController = TextEditingController();
+    final keyController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Aggiungi Amico'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nome Amico',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.person_outline),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: keyController,
+                decoration: const InputDecoration(
+                  labelText: 'Chiave Pubblica (ID)',
+                  helperText:
+                      'Chiedi all\'amico di copiarti il suo ID dal tab Account o scansiona il suo QR',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.vpn_key_outlined),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final key = keyController.text.trim();
+
+                if (name.isEmpty || key.isEmpty || key.length < 30) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Inserisci dati validi! La chiave deve essere quella pubblica.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
+
+                final db = GetIt.I<AppDatabase>();
+                final identity = GetIt.I<IdentityService>();
+                final hlc = identity.nextHlc();
+
+                await db.usersDao.upsertUser(
+                  UsersTableCompanion.insert(
+                    id: key,
+                    name: name,
+                    hlc: hlc.toString(),
+                  ),
+                );
+
+                if (context.mounted) Navigator.pop(context);
+              },
+              child: const Text('Aggiungi'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usersAsync = ref.watch(allUsersProvider);
+    final myId = GetIt.I<IdentityService>().uuid;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('I tuoi Amici')),
+      body: usersAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Errore: $err')),
+        data: (users) {
+          final friends = users.where((u) => u.id != myId).toList();
+
+          if (friends.isEmpty) {
+            return const Center(
+              child: Text(
+                'Nessun amico aggiunto. Aggiungine uno col tasto +!',
+                style: TextStyle(color: Colors.grey),
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: friends.length,
+            itemBuilder: (context, index) {
+              final friend = friends[index];
+              return Card(
+                margin: const EdgeInsets.symmetric(vertical: 6),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.person_outline),
+                  ),
+                  title: Text(
+                    friend.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(
+                    'ID: ${friend.id.substring(0, 10)}...',
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                    ),
+                  ),
+                  trailing: const Icon(
+                    Icons.check_circle_outline,
+                    color: Colors.green,
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showAddFriendDialog(context),
+        child: const Icon(Icons.person_add_alt_1_outlined),
+      ),
+    );
+  }
+}
+
+// Placeholder
+class _PlaceholderScreen extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  const _PlaceholderScreen({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: Colors.grey),
+            const SizedBox(height: 16),
+            Text(title, style: Theme.of(context).textTheme.headlineMedium),
+          ],
+        ),
       ),
     );
   }

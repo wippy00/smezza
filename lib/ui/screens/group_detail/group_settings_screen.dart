@@ -64,6 +64,41 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
     );
   }
 
+  void _confirmDeleteGroup(BuildContext context, GroupsTableData group) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Elimina Gruppo'),
+          content: Text(
+            'Sei sicuro di voler eliminare il gruppo "${group.name}"? Tutti i dati verranno rimossi.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Annulla'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                final db = GetIt.I<AppDatabase>();
+                final identity = GetIt.I<IdentityService>();
+                final hlc = identity.nextHlc();
+
+                await db.groupsDao.softDeleteGroup(group.id, hlc.toString());
+                if (context.mounted) {
+                  Navigator.pop(context); // chiude il dialog
+                  Navigator.popUntil(context, (route) => route.isFirst);
+                }
+              },
+              child: const Text('Elimina'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final myId = GetIt.I<IdentityService>().uuid;
@@ -131,7 +166,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                           leading: Icon(
                             isThisOwner ? Icons.shield : Icons.person_outline,
                           ),
-                          title: Text(u.isMe ? 'Tu' : u.name),
+                          title: Text(u.isMe ? '${u.name} (io)' : u.name),
                           subtitle: Text(isThisOwner ? 'Owner' : 'Membro'),
                           trailing: (isOwner && !isThisOwner)
                               ? IconButton(
@@ -164,6 +199,26 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                   );
                 },
               ),
+
+              if (isOwner) ...[
+                const SizedBox(height: 32),
+                const Divider(),
+                const SizedBox(height: 8),
+                Text(
+                  'Zona pericolosa',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  onPressed: () => _confirmDeleteGroup(context, group),
+                  icon: const Icon(Icons.delete_outline),
+                  label: const Text('Elimina gruppo'),
+                ),
+              ],
             ],
           );
         },

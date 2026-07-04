@@ -6,7 +6,6 @@ import 'package:uuid/uuid.dart';
 import '../../providers/users_provider.dart';
 import '../../../data/database.dart';
 import '../../../domain/splitting/equal_splitter.dart';
-// import '../../../core/hlc/hlc_manager.dart';
 import '../../../core/identity/identity_manager.dart';
 import 'package:drift/drift.dart' show Value;
 
@@ -38,9 +37,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    // Pre-selezioniamo "Me" (l'utente locale) come pagatore predefinito
     _selectedPayerId = GetIt.I<IdentityService>().uuid;
-    // Default: la valuta del gruppo, ma resta modificabile per singola spesa
     _selectedCurrency = widget.group.currencyCode;
   }
 
@@ -76,12 +73,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final expenseId = const Uuid().v4();
     final hlc = identity.nextHlc();
 
-    // --- CALCOLO DELLA FIRMA DELLA SPESA ---
-    // Payload canonico: "id|groupId|payerId|amount|currency|hlc"
     final payload =
         '$expenseId|${widget.group.id}|$_selectedPayerId|$amount|$_selectedCurrency|${hlc.toString()}';
     final signature = await identity.sign(payload);
-    // ----------------------------------------
 
     final expenseCompanion = ExpensesTableCompanion.insert(
       id: expenseId,
@@ -90,14 +84,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       description: desc,
       amount: amount,
       currencyCode: _selectedCurrency,
-      date: Value(
-        DateTime.now(),
-      ), // AGGIUNTO: TODO collegare un date picker in UI
+      date: Value(DateTime.now()),
       splitType: 'EQUAL',
       hlc: hlc.toString(),
-      signature: Value(
-        signature,
-      ), // Salviamo la firma crittografica nel DB locale!
+      signature: Value(signature),
     );
 
     final splitsCompanions = splitResults.entries.map((entry) {
@@ -106,7 +96,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         expenseId: expenseId,
         userId: entry.key,
         calculatedAmount: entry.value,
-        hlc: Value(hlc.toString()), // AGGIUNTO: stesso HLC della spesa
+        hlc: Value(hlc.toString()),
       );
     }).toList();
 
@@ -128,7 +118,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Errore: $err')),
         data: (users) {
-          // 1. Rimuoviamo eventuali duplicati per ID per evitare crash del Dropdown
           final uniqueUsers = <dynamic>[];
           final ids = <String>{};
           for (final u in users) {
@@ -137,14 +126,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
             }
           }
 
-          // Inizializza i partecipanti se la lista è vuota al primo caricamento
           if (_selectedParticipants.isEmpty && uniqueUsers.isNotEmpty) {
             _selectedParticipants.addAll(
               uniqueUsers.map((u) => u.id as String),
             );
           }
 
-          // 2. Determiniamo un ID pagatore valido che appartenga sicuramente alla lista caricata
           final hasSelectedPayer = uniqueUsers.any(
             (u) => u.id == _selectedPayerId,
           );
@@ -152,7 +139,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ? _selectedPayerId
               : (uniqueUsers.isNotEmpty ? uniqueUsers.first.id : null);
 
-          // Allineiamo lo stato interno se è cambiato
           if (activePayerId != _selectedPayerId) {
             _selectedPayerId = activePayerId;
           }
@@ -160,7 +146,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Descrizione
               TextField(
                 controller: _descController,
                 decoration: const InputDecoration(
@@ -171,45 +156,57 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Importo
-              TextField(
-                controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+              // Importo + Valuta sulla stessa riga: il simbolo della valuta
+              // basta da solo a dare senso al campo, niente prefixIcon extra.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _amountController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(
+                          RegExp(r'^\d+\.?\d{0,2}'),
+                        ),
+                      ],
+                      decoration: InputDecoration(
+                        labelText: 'Importo',
+                        border: const OutlineInputBorder(),
+                        prefixText:
+                            '${_currencySymbols[_selectedCurrency] ?? _selectedCurrency} ',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    width: 100,
+                    child: DropdownButtonFormField<String>(
+                      initialValue:
+                          _commonCurrencies.contains(_selectedCurrency)
+                              ? _selectedCurrency
+                              : _commonCurrencies.first,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      items: _commonCurrencies
+                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          setState(() => _selectedCurrency = val);
+                        }
+                      },
+                    ),
+                  ),
                 ],
-                decoration: const InputDecoration(
-                  labelText: 'Importo',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.attach_money_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Valuta della spesa (indipendente da quella di default del gruppo)
-              DropdownButtonFormField<String>(
-                initialValue: _commonCurrencies.contains(_selectedCurrency)
-                    ? _selectedCurrency
-                    : _commonCurrencies.first,
-                decoration: const InputDecoration(
-                  labelText: 'Valuta',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.currency_exchange_outlined),
-                ),
-                items: _commonCurrencies
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setState(() => _selectedCurrency = val);
-                },
               ),
               const SizedBox(height: 24),
 
-              // Pagatore
               DropdownButtonFormField<String>(
-                // Utilizziamo "value" invece di "initialValue" per consentire aggiornamenti dinamici
                 initialValue: activePayerId,
                 decoration: const InputDecoration(
                   labelText: 'Chi ha pagato?',
@@ -218,7 +215,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 items: uniqueUsers.map((u) {
                   return DropdownMenuItem<String>(
                     value: u.id,
-                    child: Text(u.isMe ? 'Tu' : u.name),
+                    child: Text(u.isMe ? '${u.name} (io)' : u.name),
                   );
                 }).toList(),
                 onChanged: (val) {
@@ -229,7 +226,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Partecipanti (Checkboxes)
               Text(
                 'Divisa tra:',
                 style: Theme.of(
@@ -242,14 +238,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   children: uniqueUsers.map((u) {
                     final isSelected = _selectedParticipants.contains(u.id);
                     return CheckboxListTile(
-                      title: Text(u.isMe ? 'Tu' : u.name),
+                      title: Text(u.isMe ? '${u.name} (io)' : u.name),
                       value: isSelected,
                       onChanged: (checked) {
                         setState(() {
                           if (checked == true) {
                             _selectedParticipants.add(u.id);
                           } else {
-                            // Non permettere di avere zero partecipanti
                             if (_selectedParticipants.length > 1) {
                               _selectedParticipants.remove(u.id);
                             }
@@ -262,7 +257,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Bottone di salvataggio
               FilledButton.icon(
                 onPressed: _saveExpense,
                 style: FilledButton.styleFrom(

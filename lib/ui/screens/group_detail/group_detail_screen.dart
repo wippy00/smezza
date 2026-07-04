@@ -8,6 +8,7 @@ import '../../providers/users_provider.dart';
 import '/data/database.dart';
 import '/core/identity/identity_manager.dart';
 import '../add_expense/add_expense_screen.dart';
+import 'expense_detail_screen.dart';
 
 class GroupDetailScreen extends ConsumerStatefulWidget {
   final GroupsTableData group;
@@ -30,7 +31,6 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     final debtsAsync = ref.watch(simplifiedDebtsProvider(widget.group.id));
     final membersAsync = ref.watch(groupMembersProvider(widget.group.id));
 
-    // Mappa id -> nome per mostrare sempre nomi leggibili invece degli UUID
     final namesById = <String, String>{};
     membersAsync.whenData((members) {
       for (final m in members) {
@@ -45,8 +45,6 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         appBar: AppBar(
           title: Text(widget.group.name),
           actions: [
-            // Feedback visivo: le impostazioni/dati del gruppo non ancora
-            // sincronizzati col server (non solo le singole spese).
             _SyncStatusIcon(
               isSynced: widget.group.isSynced,
               syncError: widget.group.syncError,
@@ -103,23 +101,20 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                         final bool isParticipant = splits.any(
                           (s) => s.userId == myId,
                         );
+                        final bool isInvolved = isPayer || isParticipant;
 
                         Color itemColor;
                         IconData itemIcon;
-                        String roleText;
 
                         if (isPayer) {
                           itemColor = Colors.green.shade700;
                           itemIcon = Icons.arrow_upward_rounded;
-                          roleText = 'Hai pagato tu';
                         } else if (isParticipant) {
                           itemColor = Colors.red.shade700;
                           itemIcon = Icons.arrow_downward_rounded;
-                          roleText = 'Devi pagare';
                         } else {
                           itemColor = Colors.grey.shade600;
                           itemIcon = Icons.remove_circle_outline_rounded;
-                          roleText = 'Non ti riguarda';
                         }
 
                         return Card(
@@ -132,53 +127,62 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                             ),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor: itemColor.withOpacity(0.1),
-                              child: Icon(itemIcon, color: itemColor),
-                            ),
-                            title: Text(
-                              expense.description,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ExpenseDetailScreen(
+                                  expense: expense,
+                                  group: widget.group,
+                                ),
                               ),
                             ),
-                            subtitle: Text(
-                              '$roleText • Da ${nameFor(expense.payerId)}',
-                              style: TextStyle(color: itemColor, fontSize: 12),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  '${expense.amount.toStringAsFixed(2)} ${expense.currencyCode}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
-                                    color: itemColor,
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: itemColor.withOpacity(0.1),
+                                child: Icon(itemIcon, color: itemColor),
+                              ),
+                              title: Text(
+                                expense.description,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: isInvolved
+                                  ? Text(
+                                      '${nameFor(expense.payerId)} ha pagato ${expense.amount.toStringAsFixed(2)} ${expense.currencyCode}',
+                                      style: TextStyle(
+                                        color: itemColor,
+                                        fontSize: 12,
+                                      ),
+                                    )
+                                  : const Text(
+                                      'Non ti riguarda',
+                                      style: TextStyle(
+                                        color: Colors.grey,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isInvolved)
+                                    Text(
+                                      '${expense.amount.toStringAsFixed(2)} ${expense.currencyCode}',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                        color: itemColor,
+                                      ),
+                                    ),
+                                  const SizedBox(width: 8),
+                                  _SyncStatusIcon(
+                                    isSynced: expense.isSynced,
+                                    syncError: expense.syncError,
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                _SyncStatusIcon(
-                                  isSynced: expense.isSynced,
-                                  syncError: expense.syncError,
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    color: Colors.red,
-                                    size: 20,
-                                  ),
-                                  onPressed: () async {
-                                    final identity = GetIt.I<IdentityService>();
-                                    final hlc = identity.nextHlc();
-                                    await db.expensesDao.softDeleteExpense(
-                                      expense.id,
-                                      hlc.toString(),
-                                    );
-                                  },
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         );
@@ -325,8 +329,6 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     );
   }
 
-  // Senza semplificazione: mostriamo esattamente chi deve dare cosa a chi,
-  // invece del solo saldo netto "nel gruppo" (che non diceva a chi ridare i soldi).
   Widget _buildRawBalances(
     AppDatabase db,
     String groupId,
