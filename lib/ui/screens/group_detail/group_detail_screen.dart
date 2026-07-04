@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/domain/debt/debt_simplifier.dart';
 import 'package:smezza/ui/screens/group_detail/group_settings_screen.dart';
 import '../../providers/expenses_provider.dart';
 import '/data/database.dart';
@@ -18,6 +19,7 @@ class GroupDetailScreen extends ConsumerStatefulWidget {
 
 class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
   bool _simplifyDebts = true;
+
   @override
   Widget build(BuildContext context) {
     final myId = GetIt.I<IdentityService>().uuid;
@@ -55,7 +57,6 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
         ),
         body: TabBarView(
           children: [
-            // TAB 1: LISTA SPESE COLORATA
             expensesAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Center(child: Text('Errore: $err')),
@@ -171,7 +172,6 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
               },
             ),
 
-            // TAB 2: GESTIONE SALDI E SEMPLIFICAZIONE
             Column(
               children: [
                 Padding(
@@ -193,16 +193,8 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 ),
                 Expanded(
                   child: _simplifyDebts
-                      ? _buildSimplifiedDebts(
-                          debtsAsync,
-                          widget.group.currencyCode,
-                        )
-                      : _buildRawBalances(
-                          db,
-                          widget.group.id,
-                          widget.group.currencyCode,
-                          myId,
-                        ),
+                      ? _buildSimplifiedDebts(debtsAsync)
+                      : _buildRawBalances(db, widget.group.id, myId),
                 ),
               ],
             ),
@@ -224,14 +216,16 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
   }
 
   Widget _buildSimplifiedDebts(
-    AsyncValue<List<dynamic>> debtsAsync,
-    String currency,
+    AsyncValue<Map<String, List<Settlement>>> debtsAsync,
   ) {
     return debtsAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(child: Text('Errore: $err')),
-      data: (settlements) {
-        if (settlements.isEmpty) {
+      data: (byCurrency) {
+        final entries = byCurrency.entries
+            .where((e) => e.value.isNotEmpty)
+            .toList();
+        if (entries.isEmpty) {
           return const Center(
             child: Text(
               'Tutti i conti sono in pari! 🎉',
@@ -239,69 +233,84 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
             ),
           );
         }
-        return ListView.builder(
+        return ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: settlements.length,
-          itemBuilder: (context, index) {
-            final settlement = settlements[index];
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(Icons.swap_horiz, color: Colors.indigo),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: Theme.of(context).textTheme.bodyLarge,
-                          children: [
-                            TextSpan(
-                              text: '${settlement.from.substring(0, 6)}... ',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
+          children: entries.map((entry) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    entry.key,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                ...entry.value.map(
+                  (settlement) => Card(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.swap_horiz, color: Colors.indigo),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: RichText(
+                              text: TextSpan(
+                                style: Theme.of(context).textTheme.bodyLarge,
+                                children: [
+                                  TextSpan(
+                                    text:
+                                        '${settlement.from.substring(0, 6)}... ',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const TextSpan(text: 'deve dare '),
+                                  TextSpan(
+                                    text:
+                                        '${settlement.amount.toStringAsFixed(2)} ${entry.key} ',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.error,
+                                    ),
+                                  ),
+                                  const TextSpan(text: 'a '),
+                                  TextSpan(
+                                    text: '${settlement.to.substring(0, 6)}...',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const TextSpan(text: 'deve dare '),
-                            TextSpan(
-                              text:
-                                  '${settlement.amount.toStringAsFixed(2)} $currency ',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(context).colorScheme.error,
-                              ),
-                            ),
-                            const TextSpan(text: 'a '),
-                            TextSpan(
-                              text: '${settlement.to.substring(0, 6)}...',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             );
-          },
+          }).toList(),
         );
       },
     );
   }
 
-  Widget _buildRawBalances(
-    AppDatabase db,
-    String groupId,
-    String currency,
-    String myId,
-  ) {
-    return FutureBuilder<Map<String, double>>(
-      future: db.expensesDao.getNetBalances(groupId),
+  Widget _buildRawBalances(AppDatabase db, String groupId, String myId) {
+    return FutureBuilder<Map<String, Map<String, double>>>(
+      future: db.expensesDao.getNetBalancesByCurrency(groupId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -310,8 +319,11 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
           return Center(child: Text('Errore: ${snapshot.error}'));
         }
 
-        final balances = snapshot.data ?? {};
-        if (balances.isEmpty) {
+        final byCurrency = snapshot.data ?? {};
+        final entries = byCurrency.entries
+            .where((e) => e.value.isNotEmpty)
+            .toList();
+        if (entries.isEmpty) {
           return const Center(
             child: Text(
               'Ancora nessun saldo da calcolare.',
@@ -320,60 +332,77 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
           );
         }
 
-        final list = balances.entries.toList();
-
-        return ListView.builder(
+        return ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: list.length,
-          itemBuilder: (context, index) {
-            final entry = list[index];
-            final userId = entry.key;
-            final amount = entry.value;
-
-            final bool isMe = userId == myId;
-            final String name = isMe ? 'Tu' : '${userId.substring(0, 8)}...';
-
-            Color balanceColor;
-            String textType;
-            IconData balanceIcon;
-
-            if (amount > 0) {
-              balanceColor = Colors.green.shade700;
-              textType = 'spetta ricevere';
-              balanceIcon = Icons.add_circle_outline_rounded;
-            } else if (amount < 0) {
-              balanceColor = Colors.red.shade700;
-              textType = 'deve dare';
-              balanceIcon = Icons.remove_circle_outline_rounded;
-            } else {
-              balanceColor = Colors.grey.shade600;
-              textType = 'è in pari';
-              balanceIcon = Icons.check_circle_outline_rounded;
-            }
-
-            return Card(
-              margin: const EdgeInsets.symmetric(vertical: 6),
-              child: ListTile(
-                leading: Icon(balanceIcon, color: balanceColor),
-                title: Text(
-                  name,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  '$textType nel gruppo',
-                  style: TextStyle(color: balanceColor),
-                ),
-                trailing: Text(
-                  '${amount.abs().toStringAsFixed(2)} $currency',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: balanceColor,
+          children: entries.map((curEntry) {
+            final currency = curEntry.key;
+            final list = curEntry.value.entries.toList();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    currency,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                 ),
-              ),
+                ...list.map((entry) {
+                  final userId = entry.key;
+                  final amount = entry.value;
+
+                  final bool isMe = userId == myId;
+                  final String name = isMe
+                      ? 'Tu'
+                      : '${userId.substring(0, 8)}...';
+
+                  Color balanceColor;
+                  String textType;
+                  IconData balanceIcon;
+
+                  if (amount > 0) {
+                    balanceColor = Colors.green.shade700;
+                    textType = 'spetta ricevere';
+                    balanceIcon = Icons.add_circle_outline_rounded;
+                  } else if (amount < 0) {
+                    balanceColor = Colors.red.shade700;
+                    textType = 'deve dare';
+                    balanceIcon = Icons.remove_circle_outline_rounded;
+                  } else {
+                    balanceColor = Colors.grey.shade600;
+                    textType = 'è in pari';
+                    balanceIcon = Icons.check_circle_outline_rounded;
+                  }
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    child: ListTile(
+                      leading: Icon(balanceIcon, color: balanceColor),
+                      title: Text(
+                        name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text(
+                        '$textType nel gruppo',
+                        style: TextStyle(color: balanceColor),
+                      ),
+                      trailing: Text(
+                        '${amount.abs().toStringAsFixed(2)} $currency',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: balanceColor,
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ],
             );
-          },
+          }).toList(),
         );
       },
     );
@@ -424,7 +453,6 @@ class _SyncStatusIcon extends StatelessWidget {
       );
     }
 
-    // Sincronizzata senza errori: niente icona, lista pulita.
     return const SizedBox.shrink();
   }
 }

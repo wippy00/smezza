@@ -71,4 +71,10 @@ class DebtSimplifier {
 
     return settlements;
   }
+
+  static Map<String, List<Settlement>> simplifyByCurrency(
+    Map<String, Map<String, double>> balancesByCurrency,
+  ) {
+    return balancesByCurrency.map((k, v) => MapEntry(k, simplify(v)));
+  }
 }

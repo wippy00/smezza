@@ -12,19 +12,24 @@ final expensesProvider = StreamProvider.family<List<ExpensesTableData>, String>(
 );
 
 // 2. Provider magico che calcola e semplifica i debiti in tempo reale
-final simplifiedDebtsProvider = FutureProvider.family<List<Settlement>, String>((
-  ref,
-  groupId,
-) async {
-  // Trucco reattivo: "ascoltiamo" le spese. Ogni volta che una spesa viene aggiunta,
-  // modificata o eliminata, questo provider si ricalcola da solo in background!
-  ref.watch(expensesProvider(groupId));
+final simplifiedDebtsByCurrencyProvider =
+    FutureProvider.family<Map<String, List<Settlement>>, String>((
+      ref,
+      groupId,
+    ) async {
+      ref.watch(expensesProvider(groupId));
+      final db = GetIt.I<AppDatabase>();
+      final balances = await db.expensesDao.getNetBalancesByCurrency(groupId);
+      return DebtSimplifier.simplifyByCurrency(balances);
+    });
 
-  final db = GetIt.I<AppDatabase>();
-
-  // Calcoliamo i saldi netti dal DB
-  final balances = await db.expensesDao.getNetBalances(groupId);
-
-  // Semplifichiamo i debiti con l'algoritmo del Modulo B
-  return DebtSimplifier.simplify(balances);
-});
+final simplifiedDebtsProvider =
+    FutureProvider.family<Map<String, List<Settlement>>, String>((
+      ref,
+      groupId,
+    ) async {
+      ref.watch(expensesProvider(groupId));
+      final db = GetIt.I<AppDatabase>();
+      final balances = await db.expensesDao.getNetBalancesByCurrency(groupId);
+      return DebtSimplifier.simplifyByCurrency(balances);
+    });

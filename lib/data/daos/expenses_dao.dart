@@ -32,29 +32,29 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
   }
 
   // Calcola il saldo netto di ogni utente in un gruppo (Credito - Debito)
-  Future<Map<String, double>> getNetBalances(String groupId) async {
+  Future<Map<String, Map<String, double>>> getNetBalancesByCurrency(
+    String groupId,
+  ) async {
     final expenses =
         await (select(expensesTable)..where(
               (t) => t.groupId.equals(groupId) & t.isDeleted.equals(false),
             ))
             .get();
 
-    final balances = <String, double>{};
+    final balances = <String, Map<String, double>>{};
 
     for (final expense in expenses) {
-      // Chi ha pagato riceve un credito per l'intero importo
-      balances[expense.payerId] =
-          (balances[expense.payerId] ?? 0.0) + expense.amount;
+      final cur = expense.currencyCode;
+      balances.putIfAbsent(cur, () => {});
+      balances[cur]![expense.payerId] =
+          (balances[cur]![expense.payerId] ?? 0.0) + expense.amount;
 
-      // Recuperiamo gli split associati a questa spesa
       final splits = await (select(
         splitsTable,
       )..where((t) => t.expenseId.equals(expense.id))).get();
-
-      // Ogni partecipante viene addebitato della propria quota
       for (final split in splits) {
-        balances[split.userId] =
-            (balances[split.userId] ?? 0.0) - split.calculatedAmount;
+        balances[cur]![split.userId] =
+            (balances[cur]![split.userId] ?? 0.0) - split.calculatedAmount;
       }
     }
     return balances;
