@@ -178,6 +178,10 @@ class PocketbaseRepository implements SyncRepository {
     try {
       final filterQuery = 'hlc > "$sinceHlc"';
 
+      // 1. SCARICA ANCHE GLI UTENTI AGGIORNATI DA POCKETBASE
+      final remoteUsers = await _pb
+          .collection('users')
+          .getFullList(filter: filterQuery);
       final remoteGroups = await _pb
           .collection('groups')
           .getFullList(filter: filterQuery);
@@ -197,6 +201,20 @@ class PocketbaseRepository implements SyncRepository {
         );
       }
 
+      // Converte gli Utenti
+      final usersJson = remoteUsers
+          .map(
+            (r) => {
+              'id': r.getStringValue('public_key'),
+              'name': r.getStringValue('name'),
+              'hlc': r.getStringValue('hlc'),
+              // Calcola in automatico se questo utente scaricato sei tu
+              'isMe': r.getStringValue('public_key') == _identity.uuid,
+              'isDeleted': false,
+            },
+          )
+          .toList();
+
       final groupsJson = remoteGroups
           .map(
             (r) => {
@@ -207,9 +225,7 @@ class PocketbaseRepository implements SyncRepository {
               'signature': r.getStringValue('signature'),
               'hlc': r.getStringValue('hlc'),
               'isDeleted': r.getBoolValue('is_deleted'),
-              'memberIds': r.getStringValue(
-                'member_ids',
-              ), // <--- RICEZIONE MEMBRI DA POCKETBASE
+              'memberIds': r.getStringValue('member_ids'),
               'isSynced': true,
             },
           )
@@ -248,6 +264,7 @@ class PocketbaseRepository implements SyncRepository {
       final packet = SyncPacket(
         senderUserId: _identity.uuid,
         sinceHlc: sinceHlc,
+        users: usersJson, // <--- AGGIUNTO IL SYNC DEI NOMI UTENTE
         groups: groupsJson,
         expenses: expensesJson,
         splits: splitsJson,

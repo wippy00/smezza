@@ -73,6 +73,7 @@ class HomeScreen extends ConsumerWidget {
                 // Payload canonico: "id|nome|valuta|proprietario|hlc"
                 final payload =
                     '$gId|${nameController.text.trim()}|$selectedCurrency|${identity.uuid}|${hlc.toString()}';
+
                 final signature = await identity.sign(payload);
                 // --------------------------------------
 
@@ -82,6 +83,7 @@ class HomeScreen extends ConsumerWidget {
                     name: nameController.text.trim(),
                     currencyCode: selectedCurrency,
                     ownerId: identity.uuid,
+                    memberIds: Value(identity.uuid),
                     hlc: hlc.toString(),
                     signature: Value(
                       signature,

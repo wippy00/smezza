@@ -105,7 +105,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final usersAsync = ref.watch(allUsersProvider);
+    final usersAsync = ref.watch(groupMembersProvider(widget.group.id));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Nuova Spesa')),
@@ -152,7 +152,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
               // Pagatore
               DropdownButtonFormField<String>(
-                value: _selectedPayerId,
+                initialValue: _selectedPayerId,
                 decoration: const InputDecoration(
                   labelText: 'Chi ha pagato?',
                   border: OutlineInputBorder(),
