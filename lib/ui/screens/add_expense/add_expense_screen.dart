@@ -35,6 +35,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   late String _selectedCurrency = 'EUR';
   bool _initializedFromExisting = false;
 
+  // NUOVO: modalità "Prestito/Rimborso" invece di spesa condivisa.
+  bool _isLoan = false;
+  String? _loanRecipientId;
+
   bool get _isEditing => widget.existingExpense != null;
 
   static const _commonCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
@@ -58,6 +62,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         (widget.existingSplits ?? []).map((s) => s.userId),
       );
       _initializedFromExisting = true;
+
+      if (e.splitType == 'LOAN' && _selectedParticipants.isNotEmpty) {
+        _isLoan = true;
+        _loanRecipientId = _selectedParticipants.first;
+      }
     } else {
       _selectedPayerId = GetIt.I<IdentityService>().uuid;
     }
@@ -67,10 +76,23 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final desc = _descController.text.trim();
     final amount = double.tryParse(_amountController.text) ?? 0.0;
 
+    if (_isLoan && _loanRecipientId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Seleziona a chi stai prestando i soldi!'),
+        ),
+      );
+      return;
+    }
+
+    final participants = _isLoan
+        ? <String>{_loanRecipientId!}
+        : _selectedParticipants;
+
     if (desc.isEmpty ||
         amount <= 0.0 ||
         _selectedPayerId == null ||
-        _selectedParticipants.isEmpty) {
+        participants.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
@@ -85,7 +107,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final identity = GetIt.I<IdentityService>();
 
     final splitter = EqualSplitter();
-    final participantsList = _selectedParticipants.toList();
+    final participantsList = participants.toList();
     final splitResults = splitter.calculate(
       totalAmount: amount,
       userIds: participantsList,
@@ -108,7 +130,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       amount: amount,
       currencyCode: _selectedCurrency,
       date: Value(_isEditing ? widget.existingExpense!.date : DateTime.now()),
-      splitType: 'EQUAL',
+      splitType: _isLoan ? 'LOAN' : 'EQUAL',
       hlc: hlc.toString(),
       signature: Value(signature),
       isSynced: const Value(false),
@@ -145,7 +167,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? 'Modifica Spesa' : 'Nuova Spesa'),
+        title: Text(
+          _isEditing
+              ? (_isLoan ? 'Modifica Prestito' : 'Modifica Spesa')
+              : (_isLoan ? 'Nuovo Prestito' : 'Nuova Spesa'),
+        ),
       ),
       body: usersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -177,12 +203,39 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(
+                    value: false,
+                    label: Text('Spesa'),
+                    icon: Icon(Icons.receipt_long_outlined),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    label: Text('Prestito/Rimborso'),
+                    icon: Icon(Icons.volunteer_activism_outlined),
+                  ),
+                ],
+                selected: {_isLoan},
+                onSelectionChanged: (selection) {
+                  setState(() {
+                    _isLoan = selection.first;
+                  });
+                },
+                style: SegmentedButton.styleFrom(
+                  selectedBackgroundColor: Colors.teal.withValues(alpha: 0.15),
+                  selectedForegroundColor: Colors.teal[800],
+                ),
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: _descController,
-                decoration: const InputDecoration(
-                  labelText: 'Descrizione (es. Spesa, Birre)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.description_outlined),
+                decoration: InputDecoration(
+                  labelText: _isLoan
+                      ? 'Descrizione (es. Prestito per taxi)'
+                      : 'Descrizione (es. Spesa, Birre)',
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.description_outlined),
                 ),
               ),
               const SizedBox(height: 16),
@@ -251,42 +304,84 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 onChanged: (val) => setState(() => _selectedPayerId = val),
               ),
               const SizedBox(height: 24),
-              Text(
-                'Divisa tra:',
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Card(
-                child: Column(
-                  children: uniqueUsers.map((u) {
-                    final isSelected = _selectedParticipants.contains(u.id);
-                    return CheckboxListTile(
-                      title: Text(u.isMe ? '${u.name} (io)' : u.name),
-                      value: isSelected,
-                      onChanged: (checked) {
-                        setState(() {
-                          if (checked == true) {
-                            _selectedParticipants.add(u.id);
-                          } else if (_selectedParticipants.length > 1) {
-                            _selectedParticipants.remove(u.id);
-                          }
-                        });
-                      },
-                    );
-                  }).toList(),
+              if (_isLoan) ...[
+                Text(
+                  'A chi presti/rimborsi i soldi?',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: uniqueUsers.any((u) => u.id == _loanRecipientId)
+                      ? _loanRecipientId
+                      : null,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.volunteer_activism_outlined),
+                  ),
+                  hint: const Text('Seleziona un amico'),
+                  items: uniqueUsers
+                      .where((u) => u.id != activePayerId)
+                      .map(
+                        (u) => DropdownMenuItem<String>(
+                          value: u.id,
+                          child: Text(u.name),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (val) => setState(() => _loanRecipientId = val),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'L\'intero importo sarà registrato come debito di questa persona verso di te, senza dividerlo tra altri partecipanti.',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                ),
+              ] else ...[
+                Text(
+                  'Divisa tra:',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Card(
+                  child: Column(
+                    children: uniqueUsers.map((u) {
+                      final isSelected = _selectedParticipants.contains(u.id);
+                      return CheckboxListTile(
+                        title: Text(u.isMe ? '${u.name} (io)' : u.name),
+                        value: isSelected,
+                        onChanged: (checked) {
+                          setState(() {
+                            if (checked == true) {
+                              _selectedParticipants.add(u.id);
+                            } else if (_selectedParticipants.length > 1) {
+                              _selectedParticipants.remove(u.id);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
               const SizedBox(height: 32),
               FilledButton.icon(
                 onPressed: _saveExpense,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: _isLoan ? Colors.teal[700] : null,
                 ),
-                icon: const Icon(Icons.save_outlined),
+                icon: Icon(
+                  _isLoan
+                      ? Icons.volunteer_activism_outlined
+                      : Icons.save_outlined,
+                ),
                 label: Text(
-                  _isEditing ? 'Salva Modifiche' : 'Salva Spesa',
+                  _isEditing ? 'Salva Modifiche' : 'Salva',
                   style: const TextStyle(fontSize: 16),
                 ),
               ),

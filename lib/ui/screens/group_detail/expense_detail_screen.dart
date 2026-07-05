@@ -123,6 +123,23 @@ class ExpenseDetailScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (expense.splitType == 'LOAN')
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Chip(
+                            avatar: Icon(
+                              Icons.volunteer_activism_outlined,
+                              size: 18,
+                              color: Colors.teal[800],
+                            ),
+                            label: const Text('Prestito / Rimborso'),
+                            backgroundColor: Colors.teal.withValues(
+                              alpha: 0.12,
+                            ),
+                            labelStyle: TextStyle(color: Colors.teal[800]),
+                            side: BorderSide.none,
+                          ),
+                        ),
                       Text(
                         expense.description,
                         style: theme.textTheme.titleLarge?.copyWith(
@@ -132,7 +149,11 @@ class ExpenseDetailScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         '${expense.amount.toStringAsFixed(2)} ${expense.currencyCode}',
-                        style: theme.textTheme.headlineSmall,
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: expense.splitType == 'LOAN'
+                              ? Colors.teal[700]
+                              : null,
+                        ),
                       ),
                     ],
                   ),

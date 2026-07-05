@@ -1,4 +1,4 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
@@ -122,15 +122,33 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 final when = DateTime.fromMillisecondsSinceEpoch(
                   Hlc.fromString(item.hlc).timestampMs,
                 );
+                final IconData icon;
+                final Color? accentColor;
+                if (item.isDeleted) {
+                  icon = item.isPayment
+                      ? Icons.swap_horiz
+                      : (item.isLoan
+                            ? Icons.volunteer_activism_outlined
+                            : Icons.receipt_long_outlined);
+                  accentColor = Colors.grey;
+                } else if (item.isPayment) {
+                  icon = Icons.swap_horiz;
+                  accentColor = Colors.blue[700];
+                } else if (item.isLoan) {
+                  icon = Icons.volunteer_activism_outlined;
+                  accentColor = Colors.teal[700];
+                } else {
+                  icon = Icons.receipt_long_outlined;
+                  accentColor = null;
+                }
+
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 4),
+                  color: (item.isLoan && !item.isDeleted)
+                      ? Colors.teal.withValues(alpha: 0.06)
+                      : null,
                   child: ListTile(
-                    leading: Icon(
-                      item.isPayment
-                          ? Icons.swap_horiz
-                          : Icons.receipt_long_outlined,
-                      color: item.isDeleted ? Colors.grey : null,
-                    ),
+                    leading: Icon(icon, color: accentColor),
                     title: Text(
                       item.isPayment
                           ? '${nameFor(item.fromUserId!)} → ${nameFor(item.toUserId!)}'
@@ -145,7 +163,13 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                       '${item.amount.toStringAsFixed(2)} ${item.currencyCode} · '
                       '${when.day.toString().padLeft(2, '0')}/${when.month.toString().padLeft(2, '0')} '
                       '${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}'
+                      '${item.isLoan ? ' · Prestito' : ''}'
                       '${item.isDeleted ? ' · Eliminata' : ''}',
+                      style: TextStyle(
+                        color: (item.isLoan && !item.isDeleted)
+                            ? Colors.teal[700]
+                            : null,
+                      ),
                     ),
                   ),
                 );
@@ -193,8 +217,70 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                     ),
                   ),
                 ),
-                ...entry.value.map(
-                  (settlement) => Card(
+                ...entry.value.map((settlement) {
+                  final myId = GetIt.I<IdentityService>().uuid;
+                  final bool iAmCreditor = settlement.to == myId;
+                  final bool iAmDebtor = settlement.from == myId;
+
+                  final List<TextSpan> spans;
+                  if (iAmCreditor) {
+                    spans = [
+                      const TextSpan(text: 'Devi ricevere '),
+                      TextSpan(
+                        text:
+                            '${settlement.amount.toStringAsFixed(2)} ${entry.key} ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      const TextSpan(text: 'da '),
+                      TextSpan(
+                        text: nameFor(settlement.from),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ];
+                  } else if (iAmDebtor) {
+                    spans = [
+                      const TextSpan(text: 'Devi dare '),
+                      TextSpan(
+                        text:
+                            '${settlement.amount.toStringAsFixed(2)} ${entry.key} ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      const TextSpan(text: 'a '),
+                      TextSpan(
+                        text: nameFor(settlement.to),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ];
+                  } else {
+                    spans = [
+                      TextSpan(
+                        text: '${nameFor(settlement.from)} ',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const TextSpan(text: 'deve dare '),
+                      TextSpan(
+                        text:
+                            '${settlement.amount.toStringAsFixed(2)} ${entry.key} ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      const TextSpan(text: 'a '),
+                      TextSpan(
+                        text: nameFor(settlement.to),
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ];
+                  }
+
+                  return Card(
                     margin: const EdgeInsets.symmetric(vertical: 6),
                     color: Theme.of(
                       context,
@@ -217,32 +303,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                               child: RichText(
                                 text: TextSpan(
                                   style: Theme.of(context).textTheme.bodyLarge,
-                                  children: [
-                                    TextSpan(
-                                      text: '${nameFor(settlement.from)} ',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const TextSpan(text: 'deve dare '),
-                                    TextSpan(
-                                      text:
-                                          '${settlement.amount.toStringAsFixed(2)} ${entry.key} ',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.error,
-                                      ),
-                                    ),
-                                    const TextSpan(text: 'a '),
-                                    TextSpan(
-                                      text: nameFor(settlement.to),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
+                                  children: spans,
                                 ),
                               ),
                             ),
@@ -251,8 +312,8 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                         ),
                       ),
                     ),
-                  ),
-                ),
+                  );
+                }),
               ],
             );
           }).toList(),
@@ -309,65 +370,114 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 ),
                 for (final debtorEntry in debtorEntries)
                   for (final creditorEntry in debtorEntry.value.entries)
-                    Card(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () => _openPaymentFor(
-                          db,
-                          debtorEntry.key,
-                          creditorEntry.key,
-                          creditorEntry.value,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.swap_horiz,
+                    Builder(
+                      builder: (context) {
+                        final myId = GetIt.I<IdentityService>().uuid;
+                        final bool iAmCreditor = creditorEntry.key == myId;
+                        final bool iAmDebtor = debtorEntry.key == myId;
+
+                        final List<TextSpan> spans;
+                        if (iAmCreditor) {
+                          spans = [
+                            const TextSpan(text: 'Devi ricevere '),
+                            TextSpan(
+                              text:
+                                  '${creditorEntry.value.toStringAsFixed(2)} $currency ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
                                 color: Theme.of(context).colorScheme.error,
                               ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: RichText(
-                                  text: TextSpan(
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodyLarge,
-                                    children: [
-                                      TextSpan(
-                                        text: '${nameFor(debtorEntry.key)} ',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const TextSpan(text: 'deve dare '),
-                                      TextSpan(
-                                        text:
-                                            '${creditorEntry.value.toStringAsFixed(2)} $currency ',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.error,
-                                        ),
-                                      ),
-                                      const TextSpan(text: 'a '),
-                                      TextSpan(
-                                        text: nameFor(creditorEntry.key),
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                            ),
+                            const TextSpan(text: 'da '),
+                            TextSpan(
+                              text: nameFor(debtorEntry.key),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
                               ),
-                              const Icon(Icons.chevron_right),
-                            ],
+                            ),
+                          ];
+                        } else if (iAmDebtor) {
+                          spans = [
+                            const TextSpan(text: 'Devi dare '),
+                            TextSpan(
+                              text:
+                                  '${creditorEntry.value.toStringAsFixed(2)} $currency ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                            const TextSpan(text: 'a '),
+                            TextSpan(
+                              text: nameFor(creditorEntry.key),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ];
+                        } else {
+                          spans = [
+                            TextSpan(
+                              text: '${nameFor(debtorEntry.key)} ',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const TextSpan(text: 'deve dare '),
+                            TextSpan(
+                              text:
+                                  '${creditorEntry.value.toStringAsFixed(2)} $currency ',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                            const TextSpan(text: 'a '),
+                            TextSpan(
+                              text: nameFor(creditorEntry.key),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ];
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => _openPaymentFor(
+                              db,
+                              debtorEntry.key,
+                              creditorEntry.key,
+                              creditorEntry.value,
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.swap_horiz,
+                                    color: Theme.of(context).colorScheme.error,
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: Theme.of(
+                                          context,
+                                        ).textTheme.bodyLarge,
+                                        children: spans,
+                                      ),
+                                    ),
+                                  ),
+                                  const Icon(Icons.chevron_right),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      },
                     ),
               ],
             );
@@ -647,6 +757,7 @@ class _SyncStatusIcon extends StatelessWidget {
 
 class _HistoryItem {
   final bool isPayment;
+  final bool isLoan;
   final String hlc;
   final double amount;
   final String currencyCode;
@@ -657,6 +768,7 @@ class _HistoryItem {
 
   _HistoryItem._({
     required this.isPayment,
+    required this.isLoan,
     required this.hlc,
     required this.amount,
     required this.currencyCode,
@@ -668,6 +780,7 @@ class _HistoryItem {
 
   factory _HistoryItem.expense(ExpensesTableData e) => _HistoryItem._(
     isPayment: false,
+    isLoan: e.splitType == 'LOAN',
     hlc: e.hlc,
     amount: e.amount,
     currencyCode: e.currencyCode,
@@ -677,6 +790,7 @@ class _HistoryItem {
 
   factory _HistoryItem.payment(PaymentsTableData p) => _HistoryItem._(
     isPayment: true,
+    isLoan: false,
     hlc: p.hlc,
     amount: p.amount,
     currencyCode: p.currencyCode,
