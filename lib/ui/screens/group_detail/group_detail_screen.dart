@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
@@ -24,6 +25,68 @@ class GroupDetailScreen extends ConsumerStatefulWidget {
 
 class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
   bool _simplifyDebts = true;
+
+  Future<ExpensesTableData?> _findExpenseForSettlement(
+    AppDatabase db,
+    String groupId,
+    String debtorId,
+    String creditorId,
+  ) async {
+    final expenses =
+        await (db.select(db.expensesTable)
+              ..where(
+                (t) =>
+                    t.groupId.equals(groupId) &
+                    t.payerId.equals(creditorId) &
+                    t.isDeleted.equals(false),
+              )
+              ..orderBy([(t) => OrderingTerm.desc(t.hlc)]))
+            .get();
+    for (final e in expenses) {
+      final hasSplit =
+          await (db.select(db.splitsTable)..where(
+                (t) => t.expenseId.equals(e.id) & t.userId.equals(debtorId),
+              ))
+              .getSingleOrNull();
+      if (hasSplit != null) return e;
+    }
+    return null;
+  }
+
+  Future<void> _openPaymentFor(
+    AppDatabase db,
+    String from,
+    String to,
+    double amount,
+  ) async {
+    final expense = await _findExpenseForSettlement(
+      db,
+      widget.group.id,
+      from,
+      to,
+    );
+    if (expense == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Nessuna spesa collegata trovata')),
+        );
+      }
+      return;
+    }
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => AddPaymentScreen(
+            group: widget.group,
+            linkedExpense: expense,
+            initialFromUserId: from,
+            initialAmount: amount,
+          ),
+        ),
+      );
+    }
+  }
 
   Widget _buildHistoryTab(WidgetRef ref, String Function(String id) nameFor) {
     final expensesAsync = ref.watch(expensesProvider(widget.group.id));
@@ -94,6 +157,226 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     );
   }
 
+  Widget _buildSimplifiedDebts(
+    AppDatabase db,
+    AsyncValue<Map<String, List<Settlement>>> debtsAsync,
+    String Function(String id) nameFor,
+  ) {
+    return debtsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(child: Text('Errore: $err')),
+      data: (byCurrency) {
+        final entries = byCurrency.entries
+            .where((e) => e.value.isNotEmpty)
+            .toList();
+        if (entries.isEmpty) {
+          return const Center(
+            child: Text(
+              'Tutti i conti sono in pari! 🎉',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: entries.map((entry) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    entry.key,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                ...entry.value.map(
+                  (settlement) => Card(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(12),
+                      onTap: () => _openPaymentFor(
+                        db,
+                        settlement.from,
+                        settlement.to,
+                        settlement.amount,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.swap_horiz, color: Colors.indigo),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: RichText(
+                                text: TextSpan(
+                                  style: Theme.of(context).textTheme.bodyLarge,
+                                  children: [
+                                    TextSpan(
+                                      text: '${nameFor(settlement.from)} ',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const TextSpan(text: 'deve dare '),
+                                    TextSpan(
+                                      text:
+                                          '${settlement.amount.toStringAsFixed(2)} ${entry.key} ',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.error,
+                                      ),
+                                    ),
+                                    const TextSpan(text: 'a '),
+                                    TextSpan(
+                                      text: nameFor(settlement.to),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildRawBalances(
+    AppDatabase db,
+    String groupId,
+    String Function(String id) nameFor,
+  ) {
+    return FutureBuilder<Map<String, Map<String, Map<String, double>>>>(
+      future: db.expensesDao.getPairwiseDebtsByCurrency(groupId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Errore: ${snapshot.error}'));
+        }
+
+        final byCurrency = snapshot.data ?? {};
+        final entries = byCurrency.entries
+            .where((e) => e.value.isNotEmpty)
+            .toList();
+        if (entries.isEmpty) {
+          return const Center(
+            child: Text(
+              'Tutti i conti sono in pari! 🎉',
+              style: TextStyle(color: Colors.grey),
+            ),
+          );
+        }
+
+        return ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: entries.map((curEntry) {
+            final currency = curEntry.key;
+            final debtorEntries = curEntry.value.entries.toList();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    currency,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                for (final debtorEntry in debtorEntries)
+                  for (final creditorEntry in debtorEntry.value.entries)
+                    Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () => _openPaymentFor(
+                          db,
+                          debtorEntry.key,
+                          creditorEntry.key,
+                          creditorEntry.value,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.swap_horiz,
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: RichText(
+                                  text: TextSpan(
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodyLarge,
+                                    children: [
+                                      TextSpan(
+                                        text: '${nameFor(debtorEntry.key)} ',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const TextSpan(text: 'deve dare '),
+                                      TextSpan(
+                                        text:
+                                            '${creditorEntry.value.toStringAsFixed(2)} $currency ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.error,
+                                        ),
+                                      ),
+                                      const TextSpan(text: 'a '),
+                                      TextSpan(
+                                        text: nameFor(creditorEntry.key),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+              ],
+            );
+          }).toList(),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final myId = GetIt.I<IdentityService>().uuid;
@@ -112,7 +395,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
     String nameFor(String id) => namesById[id] ?? 'Utente sconosciuto';
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.group.name),
@@ -287,7 +570,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 ),
                 Expanded(
                   child: _simplifyDebts
-                      ? _buildSimplifiedDebts(debtsAsync, nameFor)
+                      ? _buildSimplifiedDebts(db, debtsAsync, nameFor)
                       : _buildRawBalances(db, widget.group.id, nameFor),
                 ),
               ],
@@ -296,236 +579,20 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
             _buildHistoryTab(ref, nameFor),
           ],
         ),
-        floatingActionButton: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FloatingActionButton(
-              heroTag: 'transfer',
-              tooltip: 'Trasferisci denaro',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AddPaymentScreen(group: widget.group),
-                  ),
-                );
-              },
-              child: const Icon(Icons.currency_exchange),
-            ),
-            const SizedBox(height: 12),
-            FloatingActionButton(
-              heroTag: 'add_expense',
-              tooltip: 'Aggiungi spesa',
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AddExpenseScreen(group: widget.group),
-                  ),
-                );
-              },
-              child: const Icon(Icons.add_card),
-            ),
-          ],
+        floatingActionButton: FloatingActionButton(
+          heroTag: 'add_expense',
+          tooltip: 'Aggiungi spesa',
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddExpenseScreen(group: widget.group),
+              ),
+            );
+          },
+          child: const Icon(Icons.add_card),
         ),
       ),
-    );
-  }
-
-  Widget _buildSimplifiedDebts(
-    AsyncValue<Map<String, List<Settlement>>> debtsAsync,
-    String Function(String id) nameFor,
-  ) {
-    return debtsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(child: Text('Errore: $err')),
-      data: (byCurrency) {
-        final entries = byCurrency.entries
-            .where((e) => e.value.isNotEmpty)
-            .toList();
-        if (entries.isEmpty) {
-          return const Center(
-            child: Text(
-              'Tutti i conti sono in pari! 🎉',
-              style: TextStyle(color: Colors.grey),
-            ),
-          );
-        }
-        return ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          children: entries.map((entry) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    entry.key,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                ...entry.value.map(
-                  (settlement) => Card(
-                    margin: const EdgeInsets.symmetric(vertical: 6),
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surfaceContainerHighest,
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.swap_horiz, color: Colors.indigo),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                style: Theme.of(context).textTheme.bodyLarge,
-                                children: [
-                                  TextSpan(
-                                    text: '${nameFor(settlement.from)} ',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const TextSpan(text: 'deve dare '),
-                                  TextSpan(
-                                    text:
-                                        '${settlement.amount.toStringAsFixed(2)} ${entry.key} ',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.error,
-                                    ),
-                                  ),
-                                  const TextSpan(text: 'a '),
-                                  TextSpan(
-                                    text: nameFor(settlement.to),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            );
-          }).toList(),
-        );
-      },
-    );
-  }
-
-  Widget _buildRawBalances(
-    AppDatabase db,
-    String groupId,
-    String Function(String id) nameFor,
-  ) {
-    return FutureBuilder<Map<String, Map<String, Map<String, double>>>>(
-      future: db.expensesDao.getPairwiseDebtsByCurrency(groupId),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Errore: ${snapshot.error}'));
-        }
-
-        final byCurrency = snapshot.data ?? {};
-        final entries = byCurrency.entries
-            .where((e) => e.value.isNotEmpty)
-            .toList();
-        if (entries.isEmpty) {
-          return const Center(
-            child: Text(
-              'Tutti i conti sono in pari! 🎉',
-              style: TextStyle(color: Colors.grey),
-            ),
-          );
-        }
-
-        return ListView(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          children: entries.map((curEntry) {
-            final currency = curEntry.key;
-            final debtorEntries = curEntry.value.entries.toList();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(
-                    currency,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                for (final debtorEntry in debtorEntries)
-                  for (final creditorEntry in debtorEntry.value.entries)
-                    Card(
-                      margin: const EdgeInsets.symmetric(vertical: 6),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.swap_horiz,
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: RichText(
-                                text: TextSpan(
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                  children: [
-                                    TextSpan(
-                                      text: '${nameFor(debtorEntry.key)} ',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const TextSpan(text: 'deve dare '),
-                                    TextSpan(
-                                      text:
-                                          '${creditorEntry.value.toStringAsFixed(2)} $currency ',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.error,
-                                      ),
-                                    ),
-                                    const TextSpan(text: 'a '),
-                                    TextSpan(
-                                      text: nameFor(creditorEntry.key),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-              ],
-            );
-          }).toList(),
-        );
-      },
     );
   }
 }

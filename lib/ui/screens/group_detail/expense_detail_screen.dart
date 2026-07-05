@@ -96,19 +96,6 @@ class ExpenseDetailScreen extends StatelessWidget {
               }
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.currency_exchange_outlined),
-            tooltip: 'Registra rimborso',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>
-                      AddPaymentScreen(group: group, linkedExpense: expense),
-                ),
-              );
-            },
-          ),
 
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red),

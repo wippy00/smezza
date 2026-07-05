@@ -11,9 +11,17 @@ import '../../../core/identity/identity_manager.dart';
 
 class AddPaymentScreen extends ConsumerStatefulWidget {
   final GroupsTableData group;
-  final ExpensesTableData? linkedExpense;
+  final ExpensesTableData linkedExpense; // ora required, non nullable
+  final String? initialFromUserId;
+  final double? initialAmount;
 
-  const AddPaymentScreen({super.key, required this.group, this.linkedExpense});
+  const AddPaymentScreen({
+    super.key,
+    required this.group,
+    required this.linkedExpense,
+    this.initialFromUserId,
+    this.initialAmount,
+  });
 
   @override
   ConsumerState<AddPaymentScreen> createState() => _AddPaymentScreenState();
@@ -21,22 +29,20 @@ class AddPaymentScreen extends ConsumerStatefulWidget {
 
 class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
   final _amountController = TextEditingController();
-  final _noteController = TextEditingController();
   String? _fromUserId;
-  String? _toUserId;
 
   @override
   void initState() {
     super.initState();
-    _fromUserId = GetIt.I<IdentityService>().uuid;
+    _fromUserId = widget.initialFromUserId;
+    if (widget.initialAmount != null) {
+      _amountController.text = widget.initialAmount!.toStringAsFixed(2);
+    }
   }
 
   void _save() async {
     final amount = double.tryParse(_amountController.text) ?? 0.0;
-    if (amount <= 0 ||
-        _fromUserId == null ||
-        _toUserId == null ||
-        _fromUserId == _toUserId) {
+    if (amount <= 0 || _fromUserId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Compila tutti i campi correttamente!')),
       );
@@ -48,26 +54,15 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
     final id = const Uuid().v4();
     final hlc = identity.nextHlc();
 
-    final payload =
-        '$id|${widget.group.id}|$_fromUserId|$_toUserId|$amount|${hlc.toString()}';
-    final signature = await identity.sign(payload);
-
     await db.paymentsDao.insertPayment(
       PaymentsTableCompanion.insert(
         id: id,
         groupId: widget.group.id,
         fromUserId: _fromUserId!,
-        toUserId: _toUserId!,
+        toUserId: widget.linkedExpense.payerId,
         amount: amount,
-        currencyCode: 'EUR',
-
-        expenseId: Value(widget.linkedExpense?.id),
-        note: Value(
-          _noteController.text.trim().isEmpty
-              ? null
-              : _noteController.text.trim(),
-        ),
-        signature: Value(signature),
+        currencyCode: widget.linkedExpense.currencyCode,
+        expenseId: Value(widget.linkedExpense.id),
         hlc: hlc.toString(),
       ),
     );
@@ -78,36 +73,33 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final usersAsync = ref.watch(groupMembersProvider(widget.group.id));
-    final isReimbursement = widget.linkedExpense != null;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          isReimbursement ? 'Registra Rimborso' : 'Trasferisci Denaro',
-        ),
-      ),
+      appBar: AppBar(title: const Text('Registra Rimborso')),
       body: usersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Errore: $e')),
         data: (users) {
+          final payables = users
+              .where((u) => u.id != widget.linkedExpense.payerId)
+              .toList();
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              if (isReimbursement)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Text(
-                    'Rimborso per: ${widget.linkedExpense!.description}',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Text(
+                  'Rimborso per: ${widget.linkedExpense.description}',
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
+              ),
               DropdownButtonFormField<String>(
                 initialValue: _fromUserId,
                 decoration: const InputDecoration(
                   labelText: 'Chi paga',
                   border: OutlineInputBorder(),
                 ),
-                items: users
+                items: payables
                     .map(
                       (u) => DropdownMenuItem(
                         value: u.id,
@@ -118,39 +110,14 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
                 onChanged: (v) => setState(() => _fromUserId = v),
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: _toUserId,
-                decoration: const InputDecoration(
-                  labelText: 'Chi riceve',
-                  border: OutlineInputBorder(),
-                ),
-                items: users
-                    .map(
-                      (u) => DropdownMenuItem(
-                        value: u.id,
-                        child: Text(u.isMe ? '${u.name} (io)' : u.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (v) => setState(() => _toUserId = v),
-              ),
-              const SizedBox(height: 16),
               TextField(
                 controller: _amountController,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Importo (EUR)',
+                  labelText: 'Importo (${widget.linkedExpense.currencyCode})',
                   border: const OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _noteController,
-                decoration: const InputDecoration(
-                  labelText: 'Nota (opzionale)',
-                  border: OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 24),

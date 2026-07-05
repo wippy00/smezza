@@ -230,13 +230,8 @@ class PocketbaseRepository implements SyncRepository {
       try {
         await _upsertRecord('payments', id, {
           'expense_id': p['expenseId'],
-          'group_id': p['groupId'],
-          'from_user_id': p['fromUserId'],
-          'to_user_id': p['toUserId'],
-          'amount': p['amount'],
-          'currency_code': p['currencyCode'],
-          'note': p['note'],
-          'signature': p['signature'],
+          'user_id': p['fromUserId'],
+          'amount_paid': p['amount'],
           'hlc': p['hlc'],
           'is_deleted': p['isDeleted'],
         });
@@ -360,16 +355,9 @@ class PocketbaseRepository implements SyncRepository {
           .map(
             (r) => {
               'id': r.id,
-              'expenseId': r.getStringValue('expense_id').isEmpty
-                  ? null
-                  : r.getStringValue('expense_id'),
-              'groupId': r.getStringValue('group_id'),
-              'fromUserId': r.getStringValue('from_user_id'),
-              'toUserId': r.getStringValue('to_user_id'),
-              'amount': r.getDoubleValue('amount'),
-              'currencyCode': r.getStringValue('currency_code'),
-              'note': r.getStringValue('note'),
-              'signature': r.getStringValue('signature'),
+              'expenseId': r.getStringValue('expense_id'),
+              'fromUserId': r.getStringValue('user_id'),
+              'amount': r.getDoubleValue('amount_paid'),
               'hlc': r.getStringValue('hlc'),
               'isDeleted': r.getBoolValue('is_deleted'),
               'isSynced': true,
