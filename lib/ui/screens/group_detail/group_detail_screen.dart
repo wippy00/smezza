@@ -12,7 +12,6 @@ import '../add_expense/add_expense_screen.dart';
 import 'expense_detail_screen.dart';
 import '../../providers/payments_provider.dart';
 import '../add_expense/add_payment_screen.dart';
-import '../../../core/hlc/hlc_manager.dart';
 
 class GroupDetailScreen extends ConsumerStatefulWidget {
   final GroupsTableData group;

@@ -1,4 +1,3 @@
-// lib/ui/screens/home/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
@@ -11,6 +10,7 @@ import '../../../core/identity/identity_manager.dart';
 import '../../providers/users_provider.dart';
 
 import '/sync/sync_service.dart';
+import 'package:smezza/sync/sync_trigger.dart';
 import '../group_detail/group_detail_screen.dart';
 
 import 'package:drift/drift.dart' show Value;
@@ -20,40 +20,18 @@ class HomeScreen extends ConsumerWidget {
 
   void _showAddGroupDialog(BuildContext context) {
     final nameController = TextEditingController();
-    String selectedCurrency = 'EUR';
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
           title: const Text('Nuovo Gruppo'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nome Gruppo',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                initialValue: selectedCurrency,
-                decoration: const InputDecoration(
-                  labelText: 'Valuta',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'EUR', child: Text('Euro (€)')),
-                  DropdownMenuItem(value: 'USD', child: Text('Dollaro (\$)')),
-                  DropdownMenuItem(value: 'GBP', child: Text('Sterlina (£)')),
-                ],
-                onChanged: (val) {
-                  if (val != null) selectedCurrency = val;
-                },
-              ),
-            ],
+          content: TextField(
+            controller: nameController,
+            decoration: const InputDecoration(
+              labelText: 'Nome Gruppo',
+              border: OutlineInputBorder(),
+            ),
           ),
           actions: [
             TextButton(
@@ -71,15 +49,13 @@ class HomeScreen extends ConsumerWidget {
                 final hlc = identity.nextHlc();
 
                 final payload =
-                    '$gId|${nameController.text.trim()}|$selectedCurrency|${identity.uuid}|${hlc.toString()}';
-
+                    '$gId|${nameController.text.trim()}|${identity.uuid}|${hlc.toString()}';
                 final signature = await identity.sign(payload);
 
                 await db.groupsDao.upsertGroup(
                   GroupsTableCompanion.insert(
                     id: gId,
                     name: nameController.text.trim(),
-                    currencyCode: selectedCurrency,
                     ownerId: identity.uuid,
                     memberIds: Value(identity.uuid),
                     hlc: hlc.toString(),
@@ -87,6 +63,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 );
 
+                triggerSync();
                 if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Crea'),
@@ -152,7 +129,6 @@ class HomeScreen extends ConsumerWidget {
 
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).clearSnackBars();
-
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(
@@ -171,70 +147,75 @@ class HomeScreen extends ConsumerWidget {
             ],
           ),
         ],
-        body: groupsAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('Errore: $err')),
-          data: (groups) {
-            if (groups.isEmpty) {
-              return const Center(
-                child: Text(
-                  'Nessun gruppo. Creane uno col tasto in basso!',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              );
-            }
-
-            return ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: groups.length,
-              itemBuilder: (context, index) {
-                final group = groups[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 6),
-                  child: InkWell(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => GroupDetailScreen(group: group),
-                      ),
-                    ),
-                    onLongPress: () => _showGroupContextMenu(context, group),
-                    onSecondaryTapDown: (details) => _showGroupContextMenu(
-                      context,
-                      group,
-                      position: details.globalPosition,
-                    ),
-                    child: ListTile(
-                      trailing: !group.isSynced
-                          ? Tooltip(
-                              message:
-                                  group.syncError ??
-                                  'In attesa di sincronizzazione',
-                              child: Icon(
-                                group.syncError != null
-                                    ? Icons.error_outline
-                                    : Icons.cloud_upload_outlined,
-                                color: group.syncError != null
-                                    ? Colors.orange
-                                    : Colors.grey,
-                                size: 20,
-                              ),
-                            )
-                          : null,
-                      leading: const CircleAvatar(
-                        child: Icon(Icons.group_outlined),
-                      ),
-                      title: Text(
-                        group.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      subtitle: Text('Valuta: ${group.currencyCode}'),
-                    ),
+        body: RefreshIndicator(
+          onRefresh: () => GetIt.I<SyncService>().sync(),
+          child: groupsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Errore: $err')),
+            data: (groups) {
+              if (groups.isEmpty) {
+                return const Center(
+                  child: Text(
+                    'Nessun gruppo. Creane uno col tasto in basso!',
+                    style: TextStyle(color: Colors.grey),
                   ),
                 );
-              },
-            );
-          },
+              }
+
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                itemCount: groups.length,
+                itemBuilder: (context, index) {
+                  final group = groups[index];
+                  return Card(
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    child: InkWell(
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => GroupDetailScreen(group: group),
+                        ),
+                      ),
+                      onLongPress: () => _showGroupContextMenu(context, group),
+                      onSecondaryTapDown: (details) => _showGroupContextMenu(
+                        context,
+                        group,
+                        position: details.globalPosition,
+                      ),
+                      child: ListTile(
+                        trailing: !group.isSynced
+                            ? Tooltip(
+                                message:
+                                    group.syncError ??
+                                    'In attesa di sincronizzazione',
+                                child: Icon(
+                                  group.syncError != null
+                                      ? Icons.error_outline
+                                      : Icons.cloud_upload_outlined,
+                                  color: group.syncError != null
+                                      ? Colors.orange
+                                      : Colors.grey,
+                                  size: 20,
+                                ),
+                              )
+                            : null,
+                        leading: const CircleAvatar(
+                          child: Icon(Icons.group_outlined),
+                        ),
+                        title: Text(
+                          group.name,
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
       floatingActionButton: FloatingActionButton.large(
@@ -245,7 +226,7 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-// ================= SCHERMATA AMICI REALE =================
+// ================= SCHERMATA AMICI =================
 class FriendsScreen extends ConsumerWidget {
   const FriendsScreen({super.key});
 
@@ -315,6 +296,7 @@ class FriendsScreen extends ConsumerWidget {
                   ),
                 );
 
+                triggerSync();
                 if (context.mounted) Navigator.pop(context);
               },
               child: const Text('Aggiungi'),
@@ -382,30 +364,6 @@ class FriendsScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddFriendDialog(context),
         child: const Icon(Icons.person_add_alt_1_outlined),
-      ),
-    );
-  }
-}
-
-// Placeholder
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  const _PlaceholderScreen({required this.title, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 64, color: Colors.grey),
-            const SizedBox(height: 16),
-            Text(title, style: Theme.of(context).textTheme.headlineMedium),
-          ],
-        ),
       ),
     );
   }

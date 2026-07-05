@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/sync/sync_trigger.dart';
 import 'package:smezza/ui/providers/users_provider.dart';
 import '../../../data/database.dart';
 import '../../../core/hlc/hlc_manager.dart';
@@ -38,6 +39,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Nome aggiornato!')));
     }
+    triggerSync();
   }
 
   void _removeMember(String userId) async {
@@ -50,6 +52,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
       userId,
       hlc.toString(),
     );
+    triggerSync();
   }
 
   void _addMember(String userId) async {
@@ -62,6 +65,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
       userId,
       hlc.toString(),
     );
+    triggerSync();
   }
 
   void _confirmDeleteGroup(BuildContext context, GroupsTableData group) {
@@ -86,6 +90,8 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                 final hlc = identity.nextHlc();
 
                 await db.groupsDao.softDeleteGroup(group.id, hlc.toString());
+                triggerSync();
+
                 if (context.mounted) {
                   Navigator.pop(context); // chiude il dialog
                   Navigator.popUntil(context, (route) => route.isFirst);

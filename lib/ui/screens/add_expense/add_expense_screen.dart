@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/sync/sync_trigger.dart';
 import 'package:uuid/uuid.dart';
 import '../../providers/users_provider.dart';
 import '../../../data/database.dart';
@@ -31,7 +32,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   String? _selectedPayerId;
   final Set<String> _selectedParticipants = {};
-  late String _selectedCurrency;
+  late String _selectedCurrency = 'EUR';
   bool _initializedFromExisting = false;
 
   bool get _isEditing => widget.existingExpense != null;
@@ -52,14 +53,13 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       _descController.text = e.description;
       _amountController.text = e.amount.toString();
       _selectedPayerId = e.payerId;
-      _selectedCurrency = e.currencyCode;
+      _selectedCurrency = 'EUR';
       _selectedParticipants.addAll(
         (widget.existingSplits ?? []).map((s) => s.userId),
       );
       _initializedFromExisting = true;
     } else {
       _selectedPayerId = GetIt.I<IdentityService>().uuid;
-      _selectedCurrency = widget.group.currencyCode;
     }
   }
 
@@ -135,7 +135,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         splitsCompanions,
       );
     }
-
+    triggerSync();
     if (mounted) Navigator.pop(context);
   }
 

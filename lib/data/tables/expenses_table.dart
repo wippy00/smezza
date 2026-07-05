@@ -14,8 +14,6 @@ class ExpensesTable extends Table {
   TextColumn get hlc => text()();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
-
-  // --- AGGIUNTO: messaggio dell'ultimo errore di sync per QUESTA spesa. null = ok/mai fallita.
   TextColumn get syncError => text().nullable()();
 
   @override

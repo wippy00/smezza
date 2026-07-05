@@ -379,17 +379,6 @@ class $GroupsTableTable extends GroupsTable
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
-  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
-    'currencyCode',
-  );
-  @override
-  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
-    'currency_code',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _ownerIdMeta = const VerificationMeta(
     'ownerId',
   );
@@ -478,7 +467,6 @@ class $GroupsTableTable extends GroupsTable
   List<GeneratedColumn> get $columns => [
     id,
     name,
-    currencyCode,
     ownerId,
     hlc,
     signature,
@@ -511,17 +499,6 @@ class $GroupsTableTable extends GroupsTable
       );
     } else if (isInserting) {
       context.missing(_nameMeta);
-    }
-    if (data.containsKey('currency_code')) {
-      context.handle(
-        _currencyCodeMeta,
-        currencyCode.isAcceptableOrUnknown(
-          data['currency_code']!,
-          _currencyCodeMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_currencyCodeMeta);
     }
     if (data.containsKey('owner_id')) {
       context.handle(
@@ -586,10 +563,6 @@ class $GroupsTableTable extends GroupsTable
         DriftSqlType.string,
         data['${effectivePrefix}name'],
       )!,
-      currencyCode: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}currency_code'],
-      )!,
       ownerId: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}owner_id'],
@@ -630,7 +603,6 @@ class $GroupsTableTable extends GroupsTable
 class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
   final String id;
   final String name;
-  final String currencyCode;
   final String ownerId;
   final String hlc;
   final String? signature;
@@ -641,7 +613,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
   const GroupsTableData({
     required this.id,
     required this.name,
-    required this.currencyCode,
     required this.ownerId,
     required this.hlc,
     this.signature,
@@ -655,7 +626,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
     map['name'] = Variable<String>(name);
-    map['currency_code'] = Variable<String>(currencyCode);
     map['owner_id'] = Variable<String>(ownerId);
     map['hlc'] = Variable<String>(hlc);
     if (!nullToAbsent || signature != null) {
@@ -674,7 +644,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     return GroupsTableCompanion(
       id: Value(id),
       name: Value(name),
-      currencyCode: Value(currencyCode),
       ownerId: Value(ownerId),
       hlc: Value(hlc),
       signature: signature == null && nullToAbsent
@@ -697,7 +666,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     return GroupsTableData(
       id: serializer.fromJson<String>(json['id']),
       name: serializer.fromJson<String>(json['name']),
-      currencyCode: serializer.fromJson<String>(json['currencyCode']),
       ownerId: serializer.fromJson<String>(json['ownerId']),
       hlc: serializer.fromJson<String>(json['hlc']),
       signature: serializer.fromJson<String?>(json['signature']),
@@ -713,7 +681,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
       'name': serializer.toJson<String>(name),
-      'currencyCode': serializer.toJson<String>(currencyCode),
       'ownerId': serializer.toJson<String>(ownerId),
       'hlc': serializer.toJson<String>(hlc),
       'signature': serializer.toJson<String?>(signature),
@@ -727,7 +694,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
   GroupsTableData copyWith({
     String? id,
     String? name,
-    String? currencyCode,
     String? ownerId,
     String? hlc,
     Value<String?> signature = const Value.absent(),
@@ -738,7 +704,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
   }) => GroupsTableData(
     id: id ?? this.id,
     name: name ?? this.name,
-    currencyCode: currencyCode ?? this.currencyCode,
     ownerId: ownerId ?? this.ownerId,
     hlc: hlc ?? this.hlc,
     signature: signature.present ? signature.value : this.signature,
@@ -751,9 +716,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     return GroupsTableData(
       id: data.id.present ? data.id.value : this.id,
       name: data.name.present ? data.name.value : this.name,
-      currencyCode: data.currencyCode.present
-          ? data.currencyCode.value
-          : this.currencyCode,
       ownerId: data.ownerId.present ? data.ownerId.value : this.ownerId,
       hlc: data.hlc.present ? data.hlc.value : this.hlc,
       signature: data.signature.present ? data.signature.value : this.signature,
@@ -769,7 +731,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
     return (StringBuffer('GroupsTableData(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('currencyCode: $currencyCode, ')
           ..write('ownerId: $ownerId, ')
           ..write('hlc: $hlc, ')
           ..write('signature: $signature, ')
@@ -785,7 +746,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
   int get hashCode => Object.hash(
     id,
     name,
-    currencyCode,
     ownerId,
     hlc,
     signature,
@@ -800,7 +760,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
       (other is GroupsTableData &&
           other.id == this.id &&
           other.name == this.name &&
-          other.currencyCode == this.currencyCode &&
           other.ownerId == this.ownerId &&
           other.hlc == this.hlc &&
           other.signature == this.signature &&
@@ -813,7 +772,6 @@ class GroupsTableData extends DataClass implements Insertable<GroupsTableData> {
 class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
   final Value<String> id;
   final Value<String> name;
-  final Value<String> currencyCode;
   final Value<String> ownerId;
   final Value<String> hlc;
   final Value<String?> signature;
@@ -825,7 +783,6 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
   const GroupsTableCompanion({
     this.id = const Value.absent(),
     this.name = const Value.absent(),
-    this.currencyCode = const Value.absent(),
     this.ownerId = const Value.absent(),
     this.hlc = const Value.absent(),
     this.signature = const Value.absent(),
@@ -838,7 +795,6 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
   GroupsTableCompanion.insert({
     required String id,
     required String name,
-    required String currencyCode,
     required String ownerId,
     required String hlc,
     this.signature = const Value.absent(),
@@ -849,13 +805,11 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
-       currencyCode = Value(currencyCode),
        ownerId = Value(ownerId),
        hlc = Value(hlc);
   static Insertable<GroupsTableData> custom({
     Expression<String>? id,
     Expression<String>? name,
-    Expression<String>? currencyCode,
     Expression<String>? ownerId,
     Expression<String>? hlc,
     Expression<String>? signature,
@@ -868,7 +822,6 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (name != null) 'name': name,
-      if (currencyCode != null) 'currency_code': currencyCode,
       if (ownerId != null) 'owner_id': ownerId,
       if (hlc != null) 'hlc': hlc,
       if (signature != null) 'signature': signature,
@@ -883,7 +836,6 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
   GroupsTableCompanion copyWith({
     Value<String>? id,
     Value<String>? name,
-    Value<String>? currencyCode,
     Value<String>? ownerId,
     Value<String>? hlc,
     Value<String?>? signature,
@@ -896,7 +848,6 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     return GroupsTableCompanion(
       id: id ?? this.id,
       name: name ?? this.name,
-      currencyCode: currencyCode ?? this.currencyCode,
       ownerId: ownerId ?? this.ownerId,
       hlc: hlc ?? this.hlc,
       signature: signature ?? this.signature,
@@ -916,9 +867,6 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
-    }
-    if (currencyCode.present) {
-      map['currency_code'] = Variable<String>(currencyCode.value);
     }
     if (ownerId.present) {
       map['owner_id'] = Variable<String>(ownerId.value);
@@ -952,7 +900,6 @@ class GroupsTableCompanion extends UpdateCompanion<GroupsTableData> {
     return (StringBuffer('GroupsTableCompanion(')
           ..write('id: $id, ')
           ..write('name: $name, ')
-          ..write('currencyCode: $currencyCode, ')
           ..write('ownerId: $ownerId, ')
           ..write('hlc: $hlc, ')
           ..write('signature: $signature, ')
@@ -3282,7 +3229,6 @@ typedef $$GroupsTableTableCreateCompanionBuilder =
     GroupsTableCompanion Function({
       required String id,
       required String name,
-      required String currencyCode,
       required String ownerId,
       required String hlc,
       Value<String?> signature,
@@ -3296,7 +3242,6 @@ typedef $$GroupsTableTableUpdateCompanionBuilder =
     GroupsTableCompanion Function({
       Value<String> id,
       Value<String> name,
-      Value<String> currencyCode,
       Value<String> ownerId,
       Value<String> hlc,
       Value<String?> signature,
@@ -3323,11 +3268,6 @@ class $$GroupsTableTableFilterComposer
 
   ColumnFilters<String> get name => $composableBuilder(
     column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get currencyCode => $composableBuilder(
-    column: $table.currencyCode,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3386,11 +3326,6 @@ class $$GroupsTableTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<String> get currencyCode => $composableBuilder(
-    column: $table.currencyCode,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<String> get ownerId => $composableBuilder(
     column: $table.ownerId,
     builder: (column) => ColumnOrderings(column),
@@ -3441,11 +3376,6 @@ class $$GroupsTableTableAnnotationComposer
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get currencyCode => $composableBuilder(
-    column: $table.currencyCode,
-    builder: (column) => column,
-  );
 
   GeneratedColumn<String> get ownerId =>
       $composableBuilder(column: $table.ownerId, builder: (column) => column);
@@ -3502,7 +3432,6 @@ class $$GroupsTableTableTableManager
               ({
                 Value<String> id = const Value.absent(),
                 Value<String> name = const Value.absent(),
-                Value<String> currencyCode = const Value.absent(),
                 Value<String> ownerId = const Value.absent(),
                 Value<String> hlc = const Value.absent(),
                 Value<String?> signature = const Value.absent(),
@@ -3514,7 +3443,6 @@ class $$GroupsTableTableTableManager
               }) => GroupsTableCompanion(
                 id: id,
                 name: name,
-                currencyCode: currencyCode,
                 ownerId: ownerId,
                 hlc: hlc,
                 signature: signature,
@@ -3528,7 +3456,6 @@ class $$GroupsTableTableTableManager
               ({
                 required String id,
                 required String name,
-                required String currencyCode,
                 required String ownerId,
                 required String hlc,
                 Value<String?> signature = const Value.absent(),
@@ -3540,7 +3467,6 @@ class $$GroupsTableTableTableManager
               }) => GroupsTableCompanion.insert(
                 id: id,
                 name: name,
-                currencyCode: currencyCode,
                 ownerId: ownerId,
                 hlc: hlc,
                 signature: signature,

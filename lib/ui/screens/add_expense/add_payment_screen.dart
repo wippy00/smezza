@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/sync/sync_trigger.dart';
 import 'package:uuid/uuid.dart';
 import 'package:drift/drift.dart' show Value;
 import '../../providers/users_provider.dart';
@@ -32,7 +33,10 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
 
   void _save() async {
     final amount = double.tryParse(_amountController.text) ?? 0.0;
-    if (amount <= 0 || _fromUserId == null || _toUserId == null || _fromUserId == _toUserId) {
+    if (amount <= 0 ||
+        _fromUserId == null ||
+        _toUserId == null ||
+        _fromUserId == _toUserId) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Compila tutti i campi correttamente!')),
       );
@@ -55,14 +59,19 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
         fromUserId: _fromUserId!,
         toUserId: _toUserId!,
         amount: amount,
-        currencyCode: widget.group.currencyCode,
+        currencyCode: 'EUR',
+
         expenseId: Value(widget.linkedExpense?.id),
-        note: Value(_noteController.text.trim().isEmpty ? null : _noteController.text.trim()),
+        note: Value(
+          _noteController.text.trim().isEmpty
+              ? null
+              : _noteController.text.trim(),
+        ),
         signature: Value(signature),
         hlc: hlc.toString(),
       ),
     );
-
+    triggerSync();
     if (mounted) Navigator.pop(context);
   }
 
@@ -73,7 +82,9 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(isReimbursement ? 'Registra Rimborso' : 'Trasferisci Denaro'),
+        title: Text(
+          isReimbursement ? 'Registra Rimborso' : 'Trasferisci Denaro',
+        ),
       ),
       body: usersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -97,7 +108,12 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: users
-                    .map((u) => DropdownMenuItem(value: u.id, child: Text(u.isMe ? '${u.name} (io)' : u.name)))
+                    .map(
+                      (u) => DropdownMenuItem(
+                        value: u.id,
+                        child: Text(u.isMe ? '${u.name} (io)' : u.name),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _fromUserId = v),
               ),
@@ -109,16 +125,23 @@ class _AddPaymentScreenState extends ConsumerState<AddPaymentScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: users
-                    .map((u) => DropdownMenuItem(value: u.id, child: Text(u.isMe ? '${u.name} (io)' : u.name)))
+                    .map(
+                      (u) => DropdownMenuItem(
+                        value: u.id,
+                        child: Text(u.isMe ? '${u.name} (io)' : u.name),
+                      ),
+                    )
                     .toList(),
                 onChanged: (v) => setState(() => _toUserId = v),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: InputDecoration(
-                  labelText: 'Importo (${widget.group.currencyCode})',
+                  labelText: 'Importo (EUR)',
                   border: const OutlineInputBorder(),
                 ),
               ),

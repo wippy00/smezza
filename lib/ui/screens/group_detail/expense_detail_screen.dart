@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/sync/sync_trigger.dart';
 import 'package:smezza/ui/screens/add_expense/add_expense_screen.dart';
 import 'package:smezza/ui/screens/add_expense/add_payment_screen.dart';
 import '../../../data/database.dart';
@@ -41,6 +42,7 @@ class ExpenseDetailScreen extends StatelessWidget {
                   expense.id,
                   hlc.toString(),
                 );
+                triggerSync();
                 if (context.mounted) {
                   Navigator.pop(context); // chiude il dialog
                   Navigator.pop(context); // chiude questa schermata
