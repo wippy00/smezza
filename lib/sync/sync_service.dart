@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../data/database.dart';
-import '../../main.dart';
+import '../data/database.dart';
+import '../main.dart';
 import '../core/identity/identity_manager.dart';
 import 'sync_packet.dart';
 import 'sync_repository.dart';

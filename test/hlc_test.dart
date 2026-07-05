@@ -56,5 +56,45 @@ void main() {
         isTrue,
       );
     });
+
+    test('Dovrebbe lanciare FormatException se la stringa non ha 3 parti', () {
+      expect(() => Hlc.fromString('formato_non_valido'), throwsFormatException);
+      expect(() => Hlc.fromString('000001:0001'), throwsFormatException);
+    });
+
+    test(
+      'Dovrebbe gestire nodeId contenenti ":" ricostruendo l\'intero suffisso',
+      () {
+        const stringa = '000001738933500:0002:parte1:parte2';
+        final hlc = Hlc.fromString(stringa);
+
+        expect(hlc.nodeId, equals('parte1:parte2'));
+        expect(hlc.toString(), equals(stringa));
+      },
+    );
+
+    test(
+      'Hlc.now senza lastKnown dovrebbe usare l\'orologio di sistema con counter 0',
+      () {
+        final prima = DateTime.now().millisecondsSinceEpoch;
+        final hlc = Hlc.now(nodeId);
+        final dopo = DateTime.now().millisecondsSinceEpoch;
+
+        expect(hlc.counter, equals(0));
+        expect(hlc.timestampMs, greaterThanOrEqualTo(prima));
+        expect(hlc.timestampMs, lessThanOrEqualTo(dopo));
+      },
+    );
+
+    test(
+      'Due HLC con lo stesso timestamp ma counter diverso si confrontano sul counter',
+      () {
+        final a = Hlc(timestampMs: 500, counter: 1, nodeId: nodeId);
+        final b = Hlc(timestampMs: 500, counter: 5, nodeId: nodeId);
+
+        expect(a < b, isTrue);
+        expect(a.compareTo(b), lessThan(0));
+      },
+    );
   });
 }
