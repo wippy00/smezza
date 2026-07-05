@@ -11,8 +11,15 @@ import 'package:drift/drift.dart' show Value;
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
   final GroupsTableData group;
+  final ExpensesTableData? existingExpense; // NUOVO: se valorizzato = modifica
+  final List<SplitsTableData>? existingSplits; // NUOVO
 
-  const AddExpenseScreen({super.key, required this.group});
+  const AddExpenseScreen({
+    super.key,
+    required this.group,
+    this.existingExpense,
+    this.existingSplits,
+  });
 
   @override
   ConsumerState<AddExpenseScreen> createState() => _AddExpenseScreenState();
@@ -25,6 +32,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String? _selectedPayerId;
   final Set<String> _selectedParticipants = {};
   late String _selectedCurrency;
+  bool _initializedFromExisting = false;
+
+  bool get _isEditing => widget.existingExpense != null;
 
   static const _commonCurrencies = ['EUR', 'USD', 'GBP', 'CHF'];
   static const _currencySymbols = {
@@ -37,8 +47,20 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedPayerId = GetIt.I<IdentityService>().uuid;
-    _selectedCurrency = widget.group.currencyCode;
+    if (_isEditing) {
+      final e = widget.existingExpense!;
+      _descController.text = e.description;
+      _amountController.text = e.amount.toString();
+      _selectedPayerId = e.payerId;
+      _selectedCurrency = e.currencyCode;
+      _selectedParticipants.addAll(
+        (widget.existingSplits ?? []).map((s) => s.userId),
+      );
+      _initializedFromExisting = true;
+    } else {
+      _selectedPayerId = GetIt.I<IdentityService>().uuid;
+      _selectedCurrency = widget.group.currencyCode;
+    }
   }
 
   void _saveExpense() async {
@@ -64,13 +86,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     final splitter = EqualSplitter();
     final participantsList = _selectedParticipants.toList();
-
     final splitResults = splitter.calculate(
       totalAmount: amount,
       userIds: participantsList,
     );
 
-    final expenseId = const Uuid().v4();
+    final expenseId = _isEditing
+        ? widget.existingExpense!.id
+        : const Uuid().v4();
     final hlc = identity.nextHlc();
 
     final payload =
@@ -84,10 +107,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       description: desc,
       amount: amount,
       currencyCode: _selectedCurrency,
-      date: Value(DateTime.now()),
+      date: Value(_isEditing ? widget.existingExpense!.date : DateTime.now()),
       splitType: 'EQUAL',
       hlc: hlc.toString(),
       signature: Value(signature),
+      isSynced: const Value(false),
     );
 
     final splitsCompanions = splitResults.entries.map((entry) {
@@ -100,10 +124,17 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       );
     }).toList();
 
-    await db.expensesDao.createExpenseWithSplits(
-      expenseCompanion,
-      splitsCompanions,
-    );
+    if (_isEditing) {
+      await db.expensesDao.updateExpenseWithSplits(
+        expenseCompanion,
+        splitsCompanions,
+      );
+    } else {
+      await db.expensesDao.createExpenseWithSplits(
+        expenseCompanion,
+        splitsCompanions,
+      );
+    }
 
     if (mounted) Navigator.pop(context);
   }
@@ -113,7 +144,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     final usersAsync = ref.watch(groupMembersProvider(widget.group.id));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Nuova Spesa')),
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Modifica Spesa' : 'Nuova Spesa'),
+      ),
       body: usersAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text('Errore: $err')),
@@ -121,12 +154,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final uniqueUsers = <dynamic>[];
           final ids = <String>{};
           for (final u in users) {
-            if (ids.add(u.id)) {
-              uniqueUsers.add(u);
-            }
+            if (ids.add(u.id)) uniqueUsers.add(u);
           }
 
-          if (_selectedParticipants.isEmpty && uniqueUsers.isNotEmpty) {
+          if (!_initializedFromExisting &&
+              _selectedParticipants.isEmpty &&
+              uniqueUsers.isNotEmpty) {
             _selectedParticipants.addAll(
               uniqueUsers.map((u) => u.id as String),
             );
@@ -138,10 +171,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           final activePayerId = hasSelectedPayer
               ? _selectedPayerId
               : (uniqueUsers.isNotEmpty ? uniqueUsers.first.id : null);
-
-          if (activePayerId != _selectedPayerId) {
+          if (activePayerId != _selectedPayerId)
             _selectedPayerId = activePayerId;
-          }
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -155,9 +186,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Importo + Valuta sulla stessa riga: il simbolo della valuta
-              // basta da solo a dare senso al campo, niente prefixIcon extra.
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -186,46 +214,43 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                     child: DropdownButtonFormField<String>(
                       initialValue:
                           _commonCurrencies.contains(_selectedCurrency)
-                              ? _selectedCurrency
-                              : _commonCurrencies.first,
+                          ? _selectedCurrency
+                          : _commonCurrencies.first,
                       decoration: const InputDecoration(
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.symmetric(horizontal: 8),
                       ),
                       items: _commonCurrencies
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .map(
+                            (c) => DropdownMenuItem(value: c, child: Text(c)),
+                          )
                           .toList(),
                       onChanged: (val) {
-                        if (val != null) {
+                        if (val != null)
                           setState(() => _selectedCurrency = val);
-                        }
                       },
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-
               DropdownButtonFormField<String>(
                 initialValue: activePayerId,
                 decoration: const InputDecoration(
                   labelText: 'Chi ha pagato?',
                   border: OutlineInputBorder(),
                 ),
-                items: uniqueUsers.map((u) {
-                  return DropdownMenuItem<String>(
-                    value: u.id,
-                    child: Text(u.isMe ? '${u.name} (io)' : u.name),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  setState(() {
-                    _selectedPayerId = val;
-                  });
-                },
+                items: uniqueUsers
+                    .map(
+                      (u) => DropdownMenuItem<String>(
+                        value: u.id,
+                        child: Text(u.isMe ? '${u.name} (io)' : u.name),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (val) => setState(() => _selectedPayerId = val),
               ),
               const SizedBox(height: 24),
-
               Text(
                 'Divisa tra:',
                 style: Theme.of(
@@ -244,10 +269,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         setState(() {
                           if (checked == true) {
                             _selectedParticipants.add(u.id);
-                          } else {
-                            if (_selectedParticipants.length > 1) {
-                              _selectedParticipants.remove(u.id);
-                            }
+                          } else if (_selectedParticipants.length > 1) {
+                            _selectedParticipants.remove(u.id);
                           }
                         });
                       },
@@ -256,16 +279,15 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 ),
               ),
               const SizedBox(height: 32),
-
               FilledButton.icon(
                 onPressed: _saveExpense,
                 style: FilledButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
                 icon: const Icon(Icons.save_outlined),
-                label: const Text(
-                  'Salva Spesa',
-                  style: TextStyle(fontSize: 16),
+                label: Text(
+                  _isEditing ? 'Salva Modifiche' : 'Salva Spesa',
+                  style: const TextStyle(fontSize: 16),
                 ),
               ),
             ],

@@ -2292,6 +2292,767 @@ class SplitsTableCompanion extends UpdateCompanion<SplitsTableData> {
   }
 }
 
+class $PaymentsTableTable extends PaymentsTable
+    with TableInfo<$PaymentsTableTable, PaymentsTableData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PaymentsTableTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _expenseIdMeta = const VerificationMeta(
+    'expenseId',
+  );
+  @override
+  late final GeneratedColumn<String> expenseId = GeneratedColumn<String>(
+    'expense_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _groupIdMeta = const VerificationMeta(
+    'groupId',
+  );
+  @override
+  late final GeneratedColumn<String> groupId = GeneratedColumn<String>(
+    'group_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _fromUserIdMeta = const VerificationMeta(
+    'fromUserId',
+  );
+  @override
+  late final GeneratedColumn<String> fromUserId = GeneratedColumn<String>(
+    'from_user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _toUserIdMeta = const VerificationMeta(
+    'toUserId',
+  );
+  @override
+  late final GeneratedColumn<String> toUserId = GeneratedColumn<String>(
+    'to_user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _amountMeta = const VerificationMeta('amount');
+  @override
+  late final GeneratedColumn<double> amount = GeneratedColumn<double>(
+    'amount',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _currencyCodeMeta = const VerificationMeta(
+    'currencyCode',
+  );
+  @override
+  late final GeneratedColumn<String> currencyCode = GeneratedColumn<String>(
+    'currency_code',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _noteMeta = const VerificationMeta('note');
+  @override
+  late final GeneratedColumn<String> note = GeneratedColumn<String>(
+    'note',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _signatureMeta = const VerificationMeta(
+    'signature',
+  );
+  @override
+  late final GeneratedColumn<String> signature = GeneratedColumn<String>(
+    'signature',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _hlcMeta = const VerificationMeta('hlc');
+  @override
+  late final GeneratedColumn<String> hlc = GeneratedColumn<String>(
+    'hlc',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isSyncedMeta = const VerificationMeta(
+    'isSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> isSynced = GeneratedColumn<bool>(
+    'is_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _isDeletedMeta = const VerificationMeta(
+    'isDeleted',
+  );
+  @override
+  late final GeneratedColumn<bool> isDeleted = GeneratedColumn<bool>(
+    'is_deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _syncErrorMeta = const VerificationMeta(
+    'syncError',
+  );
+  @override
+  late final GeneratedColumn<String> syncError = GeneratedColumn<String>(
+    'sync_error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    expenseId,
+    groupId,
+    fromUserId,
+    toUserId,
+    amount,
+    currencyCode,
+    note,
+    signature,
+    hlc,
+    isSynced,
+    isDeleted,
+    syncError,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'payments_table';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PaymentsTableData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('expense_id')) {
+      context.handle(
+        _expenseIdMeta,
+        expenseId.isAcceptableOrUnknown(data['expense_id']!, _expenseIdMeta),
+      );
+    }
+    if (data.containsKey('group_id')) {
+      context.handle(
+        _groupIdMeta,
+        groupId.isAcceptableOrUnknown(data['group_id']!, _groupIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_groupIdMeta);
+    }
+    if (data.containsKey('from_user_id')) {
+      context.handle(
+        _fromUserIdMeta,
+        fromUserId.isAcceptableOrUnknown(
+          data['from_user_id']!,
+          _fromUserIdMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_fromUserIdMeta);
+    }
+    if (data.containsKey('to_user_id')) {
+      context.handle(
+        _toUserIdMeta,
+        toUserId.isAcceptableOrUnknown(data['to_user_id']!, _toUserIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_toUserIdMeta);
+    }
+    if (data.containsKey('amount')) {
+      context.handle(
+        _amountMeta,
+        amount.isAcceptableOrUnknown(data['amount']!, _amountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_amountMeta);
+    }
+    if (data.containsKey('currency_code')) {
+      context.handle(
+        _currencyCodeMeta,
+        currencyCode.isAcceptableOrUnknown(
+          data['currency_code']!,
+          _currencyCodeMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_currencyCodeMeta);
+    }
+    if (data.containsKey('note')) {
+      context.handle(
+        _noteMeta,
+        note.isAcceptableOrUnknown(data['note']!, _noteMeta),
+      );
+    }
+    if (data.containsKey('signature')) {
+      context.handle(
+        _signatureMeta,
+        signature.isAcceptableOrUnknown(data['signature']!, _signatureMeta),
+      );
+    }
+    if (data.containsKey('hlc')) {
+      context.handle(
+        _hlcMeta,
+        hlc.isAcceptableOrUnknown(data['hlc']!, _hlcMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_hlcMeta);
+    }
+    if (data.containsKey('is_synced')) {
+      context.handle(
+        _isSyncedMeta,
+        isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta),
+      );
+    }
+    if (data.containsKey('is_deleted')) {
+      context.handle(
+        _isDeletedMeta,
+        isDeleted.isAcceptableOrUnknown(data['is_deleted']!, _isDeletedMeta),
+      );
+    }
+    if (data.containsKey('sync_error')) {
+      context.handle(
+        _syncErrorMeta,
+        syncError.isAcceptableOrUnknown(data['sync_error']!, _syncErrorMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PaymentsTableData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PaymentsTableData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      expenseId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}expense_id'],
+      ),
+      groupId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}group_id'],
+      )!,
+      fromUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}from_user_id'],
+      )!,
+      toUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}to_user_id'],
+      )!,
+      amount: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}amount'],
+      )!,
+      currencyCode: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}currency_code'],
+      )!,
+      note: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}note'],
+      ),
+      signature: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}signature'],
+      ),
+      hlc: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}hlc'],
+      )!,
+      isSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_synced'],
+      )!,
+      isDeleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_deleted'],
+      )!,
+      syncError: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}sync_error'],
+      ),
+    );
+  }
+
+  @override
+  $PaymentsTableTable createAlias(String alias) {
+    return $PaymentsTableTable(attachedDatabase, alias);
+  }
+}
+
+class PaymentsTableData extends DataClass
+    implements Insertable<PaymentsTableData> {
+  final String id;
+  final String? expenseId;
+  final String groupId;
+  final String fromUserId;
+  final String toUserId;
+  final double amount;
+  final String currencyCode;
+  final String? note;
+  final String? signature;
+  final String hlc;
+  final bool isSynced;
+  final bool isDeleted;
+  final String? syncError;
+  const PaymentsTableData({
+    required this.id,
+    this.expenseId,
+    required this.groupId,
+    required this.fromUserId,
+    required this.toUserId,
+    required this.amount,
+    required this.currencyCode,
+    this.note,
+    this.signature,
+    required this.hlc,
+    required this.isSynced,
+    required this.isDeleted,
+    this.syncError,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || expenseId != null) {
+      map['expense_id'] = Variable<String>(expenseId);
+    }
+    map['group_id'] = Variable<String>(groupId);
+    map['from_user_id'] = Variable<String>(fromUserId);
+    map['to_user_id'] = Variable<String>(toUserId);
+    map['amount'] = Variable<double>(amount);
+    map['currency_code'] = Variable<String>(currencyCode);
+    if (!nullToAbsent || note != null) {
+      map['note'] = Variable<String>(note);
+    }
+    if (!nullToAbsent || signature != null) {
+      map['signature'] = Variable<String>(signature);
+    }
+    map['hlc'] = Variable<String>(hlc);
+    map['is_synced'] = Variable<bool>(isSynced);
+    map['is_deleted'] = Variable<bool>(isDeleted);
+    if (!nullToAbsent || syncError != null) {
+      map['sync_error'] = Variable<String>(syncError);
+    }
+    return map;
+  }
+
+  PaymentsTableCompanion toCompanion(bool nullToAbsent) {
+    return PaymentsTableCompanion(
+      id: Value(id),
+      expenseId: expenseId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expenseId),
+      groupId: Value(groupId),
+      fromUserId: Value(fromUserId),
+      toUserId: Value(toUserId),
+      amount: Value(amount),
+      currencyCode: Value(currencyCode),
+      note: note == null && nullToAbsent ? const Value.absent() : Value(note),
+      signature: signature == null && nullToAbsent
+          ? const Value.absent()
+          : Value(signature),
+      hlc: Value(hlc),
+      isSynced: Value(isSynced),
+      isDeleted: Value(isDeleted),
+      syncError: syncError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(syncError),
+    );
+  }
+
+  factory PaymentsTableData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PaymentsTableData(
+      id: serializer.fromJson<String>(json['id']),
+      expenseId: serializer.fromJson<String?>(json['expenseId']),
+      groupId: serializer.fromJson<String>(json['groupId']),
+      fromUserId: serializer.fromJson<String>(json['fromUserId']),
+      toUserId: serializer.fromJson<String>(json['toUserId']),
+      amount: serializer.fromJson<double>(json['amount']),
+      currencyCode: serializer.fromJson<String>(json['currencyCode']),
+      note: serializer.fromJson<String?>(json['note']),
+      signature: serializer.fromJson<String?>(json['signature']),
+      hlc: serializer.fromJson<String>(json['hlc']),
+      isSynced: serializer.fromJson<bool>(json['isSynced']),
+      isDeleted: serializer.fromJson<bool>(json['isDeleted']),
+      syncError: serializer.fromJson<String?>(json['syncError']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'expenseId': serializer.toJson<String?>(expenseId),
+      'groupId': serializer.toJson<String>(groupId),
+      'fromUserId': serializer.toJson<String>(fromUserId),
+      'toUserId': serializer.toJson<String>(toUserId),
+      'amount': serializer.toJson<double>(amount),
+      'currencyCode': serializer.toJson<String>(currencyCode),
+      'note': serializer.toJson<String?>(note),
+      'signature': serializer.toJson<String?>(signature),
+      'hlc': serializer.toJson<String>(hlc),
+      'isSynced': serializer.toJson<bool>(isSynced),
+      'isDeleted': serializer.toJson<bool>(isDeleted),
+      'syncError': serializer.toJson<String?>(syncError),
+    };
+  }
+
+  PaymentsTableData copyWith({
+    String? id,
+    Value<String?> expenseId = const Value.absent(),
+    String? groupId,
+    String? fromUserId,
+    String? toUserId,
+    double? amount,
+    String? currencyCode,
+    Value<String?> note = const Value.absent(),
+    Value<String?> signature = const Value.absent(),
+    String? hlc,
+    bool? isSynced,
+    bool? isDeleted,
+    Value<String?> syncError = const Value.absent(),
+  }) => PaymentsTableData(
+    id: id ?? this.id,
+    expenseId: expenseId.present ? expenseId.value : this.expenseId,
+    groupId: groupId ?? this.groupId,
+    fromUserId: fromUserId ?? this.fromUserId,
+    toUserId: toUserId ?? this.toUserId,
+    amount: amount ?? this.amount,
+    currencyCode: currencyCode ?? this.currencyCode,
+    note: note.present ? note.value : this.note,
+    signature: signature.present ? signature.value : this.signature,
+    hlc: hlc ?? this.hlc,
+    isSynced: isSynced ?? this.isSynced,
+    isDeleted: isDeleted ?? this.isDeleted,
+    syncError: syncError.present ? syncError.value : this.syncError,
+  );
+  PaymentsTableData copyWithCompanion(PaymentsTableCompanion data) {
+    return PaymentsTableData(
+      id: data.id.present ? data.id.value : this.id,
+      expenseId: data.expenseId.present ? data.expenseId.value : this.expenseId,
+      groupId: data.groupId.present ? data.groupId.value : this.groupId,
+      fromUserId: data.fromUserId.present
+          ? data.fromUserId.value
+          : this.fromUserId,
+      toUserId: data.toUserId.present ? data.toUserId.value : this.toUserId,
+      amount: data.amount.present ? data.amount.value : this.amount,
+      currencyCode: data.currencyCode.present
+          ? data.currencyCode.value
+          : this.currencyCode,
+      note: data.note.present ? data.note.value : this.note,
+      signature: data.signature.present ? data.signature.value : this.signature,
+      hlc: data.hlc.present ? data.hlc.value : this.hlc,
+      isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
+      isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
+      syncError: data.syncError.present ? data.syncError.value : this.syncError,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PaymentsTableData(')
+          ..write('id: $id, ')
+          ..write('expenseId: $expenseId, ')
+          ..write('groupId: $groupId, ')
+          ..write('fromUserId: $fromUserId, ')
+          ..write('toUserId: $toUserId, ')
+          ..write('amount: $amount, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('note: $note, ')
+          ..write('signature: $signature, ')
+          ..write('hlc: $hlc, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncError: $syncError')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    expenseId,
+    groupId,
+    fromUserId,
+    toUserId,
+    amount,
+    currencyCode,
+    note,
+    signature,
+    hlc,
+    isSynced,
+    isDeleted,
+    syncError,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PaymentsTableData &&
+          other.id == this.id &&
+          other.expenseId == this.expenseId &&
+          other.groupId == this.groupId &&
+          other.fromUserId == this.fromUserId &&
+          other.toUserId == this.toUserId &&
+          other.amount == this.amount &&
+          other.currencyCode == this.currencyCode &&
+          other.note == this.note &&
+          other.signature == this.signature &&
+          other.hlc == this.hlc &&
+          other.isSynced == this.isSynced &&
+          other.isDeleted == this.isDeleted &&
+          other.syncError == this.syncError);
+}
+
+class PaymentsTableCompanion extends UpdateCompanion<PaymentsTableData> {
+  final Value<String> id;
+  final Value<String?> expenseId;
+  final Value<String> groupId;
+  final Value<String> fromUserId;
+  final Value<String> toUserId;
+  final Value<double> amount;
+  final Value<String> currencyCode;
+  final Value<String?> note;
+  final Value<String?> signature;
+  final Value<String> hlc;
+  final Value<bool> isSynced;
+  final Value<bool> isDeleted;
+  final Value<String?> syncError;
+  final Value<int> rowid;
+  const PaymentsTableCompanion({
+    this.id = const Value.absent(),
+    this.expenseId = const Value.absent(),
+    this.groupId = const Value.absent(),
+    this.fromUserId = const Value.absent(),
+    this.toUserId = const Value.absent(),
+    this.amount = const Value.absent(),
+    this.currencyCode = const Value.absent(),
+    this.note = const Value.absent(),
+    this.signature = const Value.absent(),
+    this.hlc = const Value.absent(),
+    this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PaymentsTableCompanion.insert({
+    required String id,
+    this.expenseId = const Value.absent(),
+    required String groupId,
+    required String fromUserId,
+    required String toUserId,
+    required double amount,
+    required String currencyCode,
+    this.note = const Value.absent(),
+    this.signature = const Value.absent(),
+    required String hlc,
+    this.isSynced = const Value.absent(),
+    this.isDeleted = const Value.absent(),
+    this.syncError = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       groupId = Value(groupId),
+       fromUserId = Value(fromUserId),
+       toUserId = Value(toUserId),
+       amount = Value(amount),
+       currencyCode = Value(currencyCode),
+       hlc = Value(hlc);
+  static Insertable<PaymentsTableData> custom({
+    Expression<String>? id,
+    Expression<String>? expenseId,
+    Expression<String>? groupId,
+    Expression<String>? fromUserId,
+    Expression<String>? toUserId,
+    Expression<double>? amount,
+    Expression<String>? currencyCode,
+    Expression<String>? note,
+    Expression<String>? signature,
+    Expression<String>? hlc,
+    Expression<bool>? isSynced,
+    Expression<bool>? isDeleted,
+    Expression<String>? syncError,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (expenseId != null) 'expense_id': expenseId,
+      if (groupId != null) 'group_id': groupId,
+      if (fromUserId != null) 'from_user_id': fromUserId,
+      if (toUserId != null) 'to_user_id': toUserId,
+      if (amount != null) 'amount': amount,
+      if (currencyCode != null) 'currency_code': currencyCode,
+      if (note != null) 'note': note,
+      if (signature != null) 'signature': signature,
+      if (hlc != null) 'hlc': hlc,
+      if (isSynced != null) 'is_synced': isSynced,
+      if (isDeleted != null) 'is_deleted': isDeleted,
+      if (syncError != null) 'sync_error': syncError,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PaymentsTableCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? expenseId,
+    Value<String>? groupId,
+    Value<String>? fromUserId,
+    Value<String>? toUserId,
+    Value<double>? amount,
+    Value<String>? currencyCode,
+    Value<String?>? note,
+    Value<String?>? signature,
+    Value<String>? hlc,
+    Value<bool>? isSynced,
+    Value<bool>? isDeleted,
+    Value<String?>? syncError,
+    Value<int>? rowid,
+  }) {
+    return PaymentsTableCompanion(
+      id: id ?? this.id,
+      expenseId: expenseId ?? this.expenseId,
+      groupId: groupId ?? this.groupId,
+      fromUserId: fromUserId ?? this.fromUserId,
+      toUserId: toUserId ?? this.toUserId,
+      amount: amount ?? this.amount,
+      currencyCode: currencyCode ?? this.currencyCode,
+      note: note ?? this.note,
+      signature: signature ?? this.signature,
+      hlc: hlc ?? this.hlc,
+      isSynced: isSynced ?? this.isSynced,
+      isDeleted: isDeleted ?? this.isDeleted,
+      syncError: syncError ?? this.syncError,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (expenseId.present) {
+      map['expense_id'] = Variable<String>(expenseId.value);
+    }
+    if (groupId.present) {
+      map['group_id'] = Variable<String>(groupId.value);
+    }
+    if (fromUserId.present) {
+      map['from_user_id'] = Variable<String>(fromUserId.value);
+    }
+    if (toUserId.present) {
+      map['to_user_id'] = Variable<String>(toUserId.value);
+    }
+    if (amount.present) {
+      map['amount'] = Variable<double>(amount.value);
+    }
+    if (currencyCode.present) {
+      map['currency_code'] = Variable<String>(currencyCode.value);
+    }
+    if (note.present) {
+      map['note'] = Variable<String>(note.value);
+    }
+    if (signature.present) {
+      map['signature'] = Variable<String>(signature.value);
+    }
+    if (hlc.present) {
+      map['hlc'] = Variable<String>(hlc.value);
+    }
+    if (isSynced.present) {
+      map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (isDeleted.present) {
+      map['is_deleted'] = Variable<bool>(isDeleted.value);
+    }
+    if (syncError.present) {
+      map['sync_error'] = Variable<String>(syncError.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PaymentsTableCompanion(')
+          ..write('id: $id, ')
+          ..write('expenseId: $expenseId, ')
+          ..write('groupId: $groupId, ')
+          ..write('fromUserId: $fromUserId, ')
+          ..write('toUserId: $toUserId, ')
+          ..write('amount: $amount, ')
+          ..write('currencyCode: $currencyCode, ')
+          ..write('note: $note, ')
+          ..write('signature: $signature, ')
+          ..write('hlc: $hlc, ')
+          ..write('isSynced: $isSynced, ')
+          ..write('isDeleted: $isDeleted, ')
+          ..write('syncError: $syncError, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2299,9 +3060,11 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $GroupsTableTable groupsTable = $GroupsTableTable(this);
   late final $ExpensesTableTable expensesTable = $ExpensesTableTable(this);
   late final $SplitsTableTable splitsTable = $SplitsTableTable(this);
+  late final $PaymentsTableTable paymentsTable = $PaymentsTableTable(this);
   late final UsersDao usersDao = UsersDao(this as AppDatabase);
   late final GroupsDao groupsDao = GroupsDao(this as AppDatabase);
   late final ExpensesDao expensesDao = ExpensesDao(this as AppDatabase);
+  late final PaymentsDao paymentsDao = PaymentsDao(this as AppDatabase);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2311,6 +3074,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     groupsTable,
     expensesTable,
     splitsTable,
+    paymentsTable,
   ];
 }
 
@@ -3451,6 +4215,366 @@ typedef $$SplitsTableTableProcessedTableManager =
       SplitsTableData,
       PrefetchHooks Function()
     >;
+typedef $$PaymentsTableTableCreateCompanionBuilder =
+    PaymentsTableCompanion Function({
+      required String id,
+      Value<String?> expenseId,
+      required String groupId,
+      required String fromUserId,
+      required String toUserId,
+      required double amount,
+      required String currencyCode,
+      Value<String?> note,
+      Value<String?> signature,
+      required String hlc,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
+      Value<String?> syncError,
+      Value<int> rowid,
+    });
+typedef $$PaymentsTableTableUpdateCompanionBuilder =
+    PaymentsTableCompanion Function({
+      Value<String> id,
+      Value<String?> expenseId,
+      Value<String> groupId,
+      Value<String> fromUserId,
+      Value<String> toUserId,
+      Value<double> amount,
+      Value<String> currencyCode,
+      Value<String?> note,
+      Value<String?> signature,
+      Value<String> hlc,
+      Value<bool> isSynced,
+      Value<bool> isDeleted,
+      Value<String?> syncError,
+      Value<int> rowid,
+    });
+
+class $$PaymentsTableTableFilterComposer
+    extends Composer<_$AppDatabase, $PaymentsTableTable> {
+  $$PaymentsTableTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get expenseId => $composableBuilder(
+    column: $table.expenseId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get groupId => $composableBuilder(
+    column: $table.groupId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fromUserId => $composableBuilder(
+    column: $table.fromUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get toUserId => $composableBuilder(
+    column: $table.toUserId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get signature => $composableBuilder(
+    column: $table.signature,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get hlc => $composableBuilder(
+    column: $table.hlc,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get syncError => $composableBuilder(
+    column: $table.syncError,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PaymentsTableTableOrderingComposer
+    extends Composer<_$AppDatabase, $PaymentsTableTable> {
+  $$PaymentsTableTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get expenseId => $composableBuilder(
+    column: $table.expenseId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get groupId => $composableBuilder(
+    column: $table.groupId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fromUserId => $composableBuilder(
+    column: $table.fromUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get toUserId => $composableBuilder(
+    column: $table.toUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get amount => $composableBuilder(
+    column: $table.amount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get note => $composableBuilder(
+    column: $table.note,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get signature => $composableBuilder(
+    column: $table.signature,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get hlc => $composableBuilder(
+    column: $table.hlc,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSynced => $composableBuilder(
+    column: $table.isSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isDeleted => $composableBuilder(
+    column: $table.isDeleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get syncError => $composableBuilder(
+    column: $table.syncError,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PaymentsTableTableAnnotationComposer
+    extends Composer<_$AppDatabase, $PaymentsTableTable> {
+  $$PaymentsTableTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get expenseId =>
+      $composableBuilder(column: $table.expenseId, builder: (column) => column);
+
+  GeneratedColumn<String> get groupId =>
+      $composableBuilder(column: $table.groupId, builder: (column) => column);
+
+  GeneratedColumn<String> get fromUserId => $composableBuilder(
+    column: $table.fromUserId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get toUserId =>
+      $composableBuilder(column: $table.toUserId, builder: (column) => column);
+
+  GeneratedColumn<double> get amount =>
+      $composableBuilder(column: $table.amount, builder: (column) => column);
+
+  GeneratedColumn<String> get currencyCode => $composableBuilder(
+    column: $table.currencyCode,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get note =>
+      $composableBuilder(column: $table.note, builder: (column) => column);
+
+  GeneratedColumn<String> get signature =>
+      $composableBuilder(column: $table.signature, builder: (column) => column);
+
+  GeneratedColumn<String> get hlc =>
+      $composableBuilder(column: $table.hlc, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSynced =>
+      $composableBuilder(column: $table.isSynced, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDeleted =>
+      $composableBuilder(column: $table.isDeleted, builder: (column) => column);
+
+  GeneratedColumn<String> get syncError =>
+      $composableBuilder(column: $table.syncError, builder: (column) => column);
+}
+
+class $$PaymentsTableTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $PaymentsTableTable,
+          PaymentsTableData,
+          $$PaymentsTableTableFilterComposer,
+          $$PaymentsTableTableOrderingComposer,
+          $$PaymentsTableTableAnnotationComposer,
+          $$PaymentsTableTableCreateCompanionBuilder,
+          $$PaymentsTableTableUpdateCompanionBuilder,
+          (
+            PaymentsTableData,
+            BaseReferences<
+              _$AppDatabase,
+              $PaymentsTableTable,
+              PaymentsTableData
+            >,
+          ),
+          PaymentsTableData,
+          PrefetchHooks Function()
+        > {
+  $$PaymentsTableTableTableManager(_$AppDatabase db, $PaymentsTableTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PaymentsTableTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PaymentsTableTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$PaymentsTableTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> expenseId = const Value.absent(),
+                Value<String> groupId = const Value.absent(),
+                Value<String> fromUserId = const Value.absent(),
+                Value<String> toUserId = const Value.absent(),
+                Value<double> amount = const Value.absent(),
+                Value<String> currencyCode = const Value.absent(),
+                Value<String?> note = const Value.absent(),
+                Value<String?> signature = const Value.absent(),
+                Value<String> hlc = const Value.absent(),
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<String?> syncError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PaymentsTableCompanion(
+                id: id,
+                expenseId: expenseId,
+                groupId: groupId,
+                fromUserId: fromUserId,
+                toUserId: toUserId,
+                amount: amount,
+                currencyCode: currencyCode,
+                note: note,
+                signature: signature,
+                hlc: hlc,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
+                syncError: syncError,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> expenseId = const Value.absent(),
+                required String groupId,
+                required String fromUserId,
+                required String toUserId,
+                required double amount,
+                required String currencyCode,
+                Value<String?> note = const Value.absent(),
+                Value<String?> signature = const Value.absent(),
+                required String hlc,
+                Value<bool> isSynced = const Value.absent(),
+                Value<bool> isDeleted = const Value.absent(),
+                Value<String?> syncError = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PaymentsTableCompanion.insert(
+                id: id,
+                expenseId: expenseId,
+                groupId: groupId,
+                fromUserId: fromUserId,
+                toUserId: toUserId,
+                amount: amount,
+                currencyCode: currencyCode,
+                note: note,
+                signature: signature,
+                hlc: hlc,
+                isSynced: isSynced,
+                isDeleted: isDeleted,
+                syncError: syncError,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PaymentsTableTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $PaymentsTableTable,
+      PaymentsTableData,
+      $$PaymentsTableTableFilterComposer,
+      $$PaymentsTableTableOrderingComposer,
+      $$PaymentsTableTableAnnotationComposer,
+      $$PaymentsTableTableCreateCompanionBuilder,
+      $$PaymentsTableTableUpdateCompanionBuilder,
+      (
+        PaymentsTableData,
+        BaseReferences<_$AppDatabase, $PaymentsTableTable, PaymentsTableData>,
+      ),
+      PaymentsTableData,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -3463,4 +4587,6 @@ class $AppDatabaseManager {
       $$ExpensesTableTableTableManager(_db, _db.expensesTable);
   $$SplitsTableTableTableManager get splitsTable =>
       $$SplitsTableTableTableManager(_db, _db.splitsTable);
+  $$PaymentsTableTableTableManager get paymentsTable =>
+      $$PaymentsTableTableTableManager(_db, _db.paymentsTable);
 }

@@ -159,9 +159,11 @@ class PocketbaseRepository implements SyncRepository {
     final succeededGroupIds = <String>{};
     final succeededExpenseIds = <String>{};
     final succeededSplitIds = <String>{};
+    final succeededPaymentIds = <String>{};
     final failedGroupErrors = <String, String>{};
     final failedExpenseErrors = <String, String>{};
     final failedSplitErrors = <String, String>{};
+    final failedPaymentErrors = <String, String>{};
 
     for (final g in packet.groups) {
       final id = g['id'] as String;
@@ -223,10 +225,32 @@ class PocketbaseRepository implements SyncRepository {
       }
     }
 
+    for (final p in packet.payments) {
+      final id = p['id'] as String;
+      try {
+        await _upsertRecord('payments', id, {
+          'expense_id': p['expenseId'],
+          'group_id': p['groupId'],
+          'from_user_id': p['fromUserId'],
+          'to_user_id': p['toUserId'],
+          'amount': p['amount'],
+          'currency_code': p['currencyCode'],
+          'note': p['note'],
+          'signature': p['signature'],
+          'hlc': p['hlc'],
+          'is_deleted': p['isDeleted'],
+        });
+        succeededPaymentIds.add(id);
+      } catch (err) {
+        failedPaymentErrors[id] = _describeError(err);
+      }
+    }
+
     final anyFailure =
         failedGroupErrors.isNotEmpty ||
         failedExpenseErrors.isNotEmpty ||
-        failedSplitErrors.isNotEmpty;
+        failedSplitErrors.isNotEmpty ||
+        failedPaymentErrors.isNotEmpty;
 
     _statusController.add(anyFailure ? SyncStatus.error : SyncStatus.connected);
 
@@ -237,6 +261,7 @@ class PocketbaseRepository implements SyncRepository {
       failedGroupErrors: failedGroupErrors,
       failedExpenseErrors: failedExpenseErrors,
       failedSplitErrors: failedSplitErrors,
+      failedPaymentErrors: failedPaymentErrors,
     );
   }
 
@@ -327,6 +352,30 @@ class PocketbaseRepository implements SyncRepository {
             },
           )
           .toList();
+      final remotePayments = await _pb
+          .collection('payments')
+          .getFullList(filter: filterQuery);
+
+      final paymentsJson = remotePayments
+          .map(
+            (r) => {
+              'id': r.id,
+              'expenseId': r.getStringValue('expense_id').isEmpty
+                  ? null
+                  : r.getStringValue('expense_id'),
+              'groupId': r.getStringValue('group_id'),
+              'fromUserId': r.getStringValue('from_user_id'),
+              'toUserId': r.getStringValue('to_user_id'),
+              'amount': r.getDoubleValue('amount'),
+              'currencyCode': r.getStringValue('currency_code'),
+              'note': r.getStringValue('note'),
+              'signature': r.getStringValue('signature'),
+              'hlc': r.getStringValue('hlc'),
+              'isDeleted': r.getBoolValue('is_deleted'),
+              'isSynced': true,
+            },
+          )
+          .toList();
 
       final splitsJson = remoteSplits
           .map(
@@ -350,6 +399,7 @@ class PocketbaseRepository implements SyncRepository {
         groups: groupsJson,
         expenses: expensesJson,
         splits: splitsJson,
+        payments: paymentsJson,
       );
 
       await _merge.applyPacket(packet);

@@ -35,7 +35,7 @@ Future<void> setupDependencies({AppDatabase? dbOverride}) async {
 
   // 4. Inizializza e registra il PocketbaseRepository
   const String pocketbaseIp =
-      'http://192.168.1.5:8090'; // Modifica con l'IP del tuo server
+      'https://smezza.salamini.cloud'; // Modifica con l'IP del tuo server
 
   final pbRepo = PocketbaseRepository(
     pbUrl: pocketbaseIp,

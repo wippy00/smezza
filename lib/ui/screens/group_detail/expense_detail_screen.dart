@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/ui/screens/add_expense/add_expense_screen.dart';
+import 'package:smezza/ui/screens/add_expense/add_payment_screen.dart';
 import '../../../data/database.dart';
 import '../../../core/identity/identity_manager.dart';
 import '../../../core/hlc/hlc_manager.dart';
@@ -74,16 +76,38 @@ class ExpenseDetailScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Modifica',
+            onPressed: () async {
+              final splits = await (db.select(
+                db.splitsTable,
+              )..where((t) => t.expenseId.equals(expense.id))).get();
+              if (context.mounted) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddExpenseScreen(
+                      group: group,
+                      existingExpense: expense,
+                      existingSplits: splits,
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.currency_exchange_outlined),
+            tooltip: 'Registra rimborso',
             onPressed: () {
-              // La modifica di una spesa esistente non è ancora
-              // implementata (AddExpenseScreen oggi crea solo nuove spese).
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Modifica spesa non ancora disponibile'),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>
+                      AddPaymentScreen(group: group, linkedExpense: expense),
                 ),
               );
             },
           ),
+
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red),
             tooltip: 'Elimina',

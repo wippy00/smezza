@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:smezza/core/hlc/hlc_manager.dart';
 import 'package:smezza/domain/debt/debt_simplifier.dart';
 import 'package:smezza/ui/screens/group_detail/group_settings_screen.dart';
 import '../../providers/expenses_provider.dart';
@@ -9,6 +10,9 @@ import '/data/database.dart';
 import '/core/identity/identity_manager.dart';
 import '../add_expense/add_expense_screen.dart';
 import 'expense_detail_screen.dart';
+import '../../providers/payments_provider.dart';
+import '../add_expense/add_payment_screen.dart';
+import '../../../core/hlc/hlc_manager.dart';
 
 class GroupDetailScreen extends ConsumerStatefulWidget {
   final GroupsTableData group;
@@ -21,6 +25,75 @@ class GroupDetailScreen extends ConsumerStatefulWidget {
 
 class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
   bool _simplifyDebts = true;
+
+  Widget _buildHistoryTab(WidgetRef ref, String Function(String id) nameFor) {
+    final expensesAsync = ref.watch(expensesProvider(widget.group.id));
+    final paymentsAsync = ref.watch(paymentsProvider(widget.group.id));
+
+    return expensesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Errore: $e')),
+      data: (expenses) {
+        return paymentsAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Errore: $e')),
+          data: (payments) {
+            final items = <_HistoryItem>[
+              ...expenses.map((e) => _HistoryItem.expense(e)),
+              ...payments.map((p) => _HistoryItem.payment(p)),
+            ]..sort((a, b) => b.hlc.compareTo(a.hlc));
+
+            if (items.isEmpty) {
+              return const Center(
+                child: Text(
+                  'Nessuna attività ancora.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                final item = items[index];
+                final when = DateTime.fromMillisecondsSinceEpoch(
+                  Hlc.fromString(item.hlc).timestampMs,
+                );
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    leading: Icon(
+                      item.isPayment
+                          ? Icons.swap_horiz
+                          : Icons.receipt_long_outlined,
+                      color: item.isDeleted ? Colors.grey : null,
+                    ),
+                    title: Text(
+                      item.isPayment
+                          ? '${nameFor(item.fromUserId!)} → ${nameFor(item.toUserId!)}'
+                          : item.description!,
+                      style: TextStyle(
+                        decoration: item.isDeleted
+                            ? TextDecoration.lineThrough
+                            : null,
+                      ),
+                    ),
+                    subtitle: Text(
+                      '${item.amount.toStringAsFixed(2)} ${item.currencyCode} · '
+                      '${when.day.toString().padLeft(2, '0')}/${when.month.toString().padLeft(2, '0')} '
+                      '${when.hour.toString().padLeft(2, '0')}:${when.minute.toString().padLeft(2, '0')}'
+                      '${item.isDeleted ? ' · Eliminata' : ''}',
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,6 +140,7 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 icon: Icon(Icons.account_balance_wallet_outlined),
                 text: 'Saldi',
               ),
+              Tab(icon: Icon(Icons.history_outlined), text: 'Cronologia'),
             ],
           ),
         ),
@@ -219,18 +293,41 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 ),
               ],
             ),
+
+            _buildHistoryTab(ref, nameFor),
           ],
         ),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => AddExpenseScreen(group: widget.group),
-              ),
-            );
-          },
-          child: const Icon(Icons.add_card),
+        floatingActionButton: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FloatingActionButton(
+              heroTag: 'transfer',
+              tooltip: 'Trasferisci denaro',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddPaymentScreen(group: widget.group),
+                  ),
+                );
+              },
+              child: const Icon(Icons.currency_exchange),
+            ),
+            const SizedBox(height: 12),
+            FloatingActionButton(
+              heroTag: 'add_expense',
+              tooltip: 'Aggiungi spesa',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AddExpenseScreen(group: widget.group),
+                  ),
+                );
+              },
+              child: const Icon(Icons.add_card),
+            ),
+          ],
         ),
       ),
     );
@@ -480,4 +577,45 @@ class _SyncStatusIcon extends StatelessWidget {
 
     return const SizedBox.shrink();
   }
+}
+
+class _HistoryItem {
+  final bool isPayment;
+  final String hlc;
+  final double amount;
+  final String currencyCode;
+  final bool isDeleted;
+  final String? description;
+  final String? fromUserId;
+  final String? toUserId;
+
+  _HistoryItem._({
+    required this.isPayment,
+    required this.hlc,
+    required this.amount,
+    required this.currencyCode,
+    required this.isDeleted,
+    this.description,
+    this.fromUserId,
+    this.toUserId,
+  });
+
+  factory _HistoryItem.expense(ExpensesTableData e) => _HistoryItem._(
+    isPayment: false,
+    hlc: e.hlc,
+    amount: e.amount,
+    currencyCode: e.currencyCode,
+    isDeleted: e.isDeleted,
+    description: e.description,
+  );
+
+  factory _HistoryItem.payment(PaymentsTableData p) => _HistoryItem._(
+    isPayment: true,
+    hlc: p.hlc,
+    amount: p.amount,
+    currencyCode: p.currencyCode,
+    isDeleted: p.isDeleted,
+    fromUserId: p.fromUserId,
+    toUserId: p.toUserId,
+  );
 }

@@ -8,16 +8,18 @@ import 'tables/users_table.dart';
 import 'tables/groups_table.dart';
 import 'tables/expenses_table.dart';
 import 'tables/splits_table.dart';
+import 'tables/payments_table.dart'; // NUOVO
 
 import 'daos/users_dao.dart';
 import 'daos/groups_dao.dart';
 import 'daos/expenses_dao.dart';
+import 'daos/payments_dao.dart'; // NUOVO
 
 part 'database.g.dart';
 
 @DriftDatabase(
-  tables: [UsersTable, GroupsTable, ExpensesTable, SplitsTable],
-  daos: [UsersDao, GroupsDao, ExpensesDao],
+  tables: [UsersTable, GroupsTable, ExpensesTable, SplitsTable, PaymentsTable],
+  daos: [UsersDao, GroupsDao, ExpensesDao, PaymentsDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -25,7 +27,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.inMemory() : super(NativeDatabase.memory());
 
   @override
-  int get schemaVersion => 3; // era 2
+  int get schemaVersion => 4; // era 3
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -41,6 +43,9 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await m.addColumn(expensesTable, expensesTable.syncError);
         await m.addColumn(groupsTable, groupsTable.syncError);
+      }
+      if (from < 4) {
+        await m.createTable(paymentsTable);
       }
     },
   );

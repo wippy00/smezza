@@ -7,6 +7,7 @@ class SyncPacket {
   final List<Map<String, dynamic>> groups;
   final List<Map<String, dynamic>> expenses;
   final List<Map<String, dynamic>> splits;
+  final List<Map<String, dynamic>> payments; // NUOVO
 
   const SyncPacket({
     required this.senderUserId,
@@ -15,10 +16,15 @@ class SyncPacket {
     this.groups = const [],
     this.expenses = const [],
     this.splits = const [],
+    this.payments = const [],
   });
 
   bool get isEmpty =>
-      users.isEmpty && groups.isEmpty && expenses.isEmpty && splits.isEmpty;
+      users.isEmpty &&
+      groups.isEmpty &&
+      expenses.isEmpty &&
+      splits.isEmpty &&
+      payments.isEmpty;
 
   String toJsonString() => jsonEncode({
     'senderUserId': senderUserId,
@@ -27,6 +33,7 @@ class SyncPacket {
     'groups': groups,
     'expenses': expenses,
     'splits': splits,
+    'payments': payments,
   });
 
   factory SyncPacket.fromJsonString(String s) {
@@ -38,6 +45,7 @@ class SyncPacket {
       groups: List<Map<String, dynamic>>.from(j['groups'] ?? []),
       expenses: List<Map<String, dynamic>>.from(j['expenses'] ?? []),
       splits: List<Map<String, dynamic>>.from(j['splits'] ?? []),
+      payments: List<Map<String, dynamic>>.from(j['payments'] ?? []),
     );
   }
 }

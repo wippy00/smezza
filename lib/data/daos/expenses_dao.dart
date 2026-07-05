@@ -138,4 +138,28 @@ class ExpensesDao extends DatabaseAccessor<AppDatabase>
       ),
     );
   }
+
+  Future<void> updateExpenseWithSplits(
+    ExpensesTableCompanion expense,
+    List<SplitsTableCompanion> newSplits,
+  ) async {
+    final expenseId = expense.id.value;
+    await transaction(() async {
+      await into(expensesTable).insertOnConflictUpdate(expense);
+
+      final oldSplits = await (select(
+        splitsTable,
+      )..where((t) => t.expenseId.equals(expenseId))).get();
+      final newIds = newSplits.map((s) => s.id.value).toSet();
+
+      for (final old in oldSplits) {
+        if (!newIds.contains(old.id)) {
+          await (delete(splitsTable)..where((t) => t.id.equals(old.id))).go();
+        }
+      }
+      for (final s in newSplits) {
+        await into(splitsTable).insertOnConflictUpdate(s);
+      }
+    });
+  }
 }
